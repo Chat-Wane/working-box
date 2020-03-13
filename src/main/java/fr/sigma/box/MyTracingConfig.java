@@ -5,7 +5,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import io.opentracing.Tracer;
 import io.jaegertracing.Configuration;
+import io.opentracing.propagation.Format;
 import io.jaegertracing.internal.samplers.ConstSampler;
+import io.jaegertracing.internal.propagation.B3TextMapCodec;
 import java.util.Objects;
 
 
@@ -22,6 +24,13 @@ public class MyTracingConfig {
     public Tracer tracer () {
         if (!Objects.isNull(tracer))
             return tracer;
+
+        var b3Codec = new B3TextMapCodec();
+        
+        Configuration.CodecConfiguration codecConfig =
+            new Configuration.CodecConfiguration()
+            .withCodec(Format.Builtin.HTTP_HEADERS, b3Codec)
+            .withCodec(Format.Builtin.HTTP_HEADERS, b3Codec);
         
         Configuration.SamplerConfiguration samplerConfig =
             Configuration.SamplerConfiguration.fromEnv()
@@ -34,7 +43,8 @@ public class MyTracingConfig {
 
         Configuration config = new Configuration(serviceName)
             .withSampler(samplerConfig)
-            .withReporter(reporterConfig);
+            .withReporter(reporterConfig)
+            .withCodec(codecConfig);
         
         tracer = config.getTracer();
         return tracer;
