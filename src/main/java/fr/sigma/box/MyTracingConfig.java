@@ -1,18 +1,17 @@
 package fr.sigma.box;
 
+import io.jaegertracing.internal.JaegerTracer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Configuration;
 import io.opentracing.Tracer;
-import io.jaegertracing.Configuration;
 import io.opentracing.propagation.Format;
-import io.jaegertracing.internal.samplers.ConstSampler;
 import io.jaegertracing.internal.propagation.B3TextMapCodec;
+
 import java.util.Objects;
 
-
 
-@Component
+@Configuration
 public class MyTracingConfig {
 
     @Value("${spring.application.name:default-service-name}")
@@ -21,32 +20,16 @@ public class MyTracingConfig {
     private Tracer tracer;
 
     @Bean
-    public Tracer tracer () {
+    public Tracer tracer() {
         if (!Objects.isNull(tracer))
             return tracer;
 
-        var b3Codec = new B3TextMapCodec();
-        
-        Configuration.CodecConfiguration codecConfig =
-            new Configuration.CodecConfiguration()
-            .withCodec(Format.Builtin.HTTP_HEADERS, b3Codec)
-            .withCodec(Format.Builtin.HTTP_HEADERS, b3Codec);
-        
-        Configuration.SamplerConfiguration samplerConfig =
-            Configuration.SamplerConfiguration.fromEnv()
-            .withType(ConstSampler.TYPE)
-            .withParam(1);
-        
-        Configuration.ReporterConfiguration reporterConfig =
-            Configuration.ReporterConfiguration.fromEnv()
-            .withLogSpans(true);
+        var b3Codec = new B3TextMapCodec.Builder().build();
 
-        Configuration config = new Configuration(serviceName)
-            .withSampler(samplerConfig)
-            .withReporter(reporterConfig)
-            .withCodec(codecConfig);
-        
-        tracer = config.getTracer();
+        tracer = new JaegerTracer.Builder(serviceName)
+                .registerInjector(Format.Builtin.HTTP_HEADERS, b3Codec)
+                .registerExtractor(Format.Builtin.HTTP_HEADERS, b3Codec).build();
+
         return tracer;
     }
 
