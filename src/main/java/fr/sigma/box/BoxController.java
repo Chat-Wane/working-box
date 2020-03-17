@@ -15,7 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.annotation.PostConstruct;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -42,15 +41,14 @@ public class BoxController {
     private List<String> remote_calls;
     private ArrayList<Pair<String, Integer>> address_time_list;
 
-    @Autowired
     private Tracer tracer;
     private RestTemplate restTemplate;
 
     public BoxController() {
     }
 
-    @PostConstruct
-    private void init () {
+    @RequestMapping("/*")
+    private ResponseEntity<String> handle(Double x, @RequestHeader Map<String, String> headers) {
         restTemplate = new RestTemplate();
         
         polynome = new Polynome(coefficients);
@@ -64,10 +62,8 @@ public class BoxController {
                                            Integer.parseInt(address_time[1])));
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
-    }
 
-    @RequestMapping("/*")
-    private ResponseEntity<String> handle(Double x, @RequestHeader Map<String, String> headers) {
+        
         var start = LocalDateTime.now();
 
         if (Objects.isNull(x)) // default value
