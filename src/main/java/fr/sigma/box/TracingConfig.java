@@ -10,9 +10,10 @@ import io.jaegertracing.internal.propagation.B3TextMapCodec;
 
 import java.util.Objects;
 
+
 
 @Configuration
-public class MyTracingConfig {
+public class TracingConfig {
 
     @Value("${spring.application.name:default-service-name}")
     private String serviceName;

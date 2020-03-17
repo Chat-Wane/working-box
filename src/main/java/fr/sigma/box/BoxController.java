@@ -15,12 +15,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.annotation.PostConstruct;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
+
 
 /**
  * Spring boot controller that wastes resources on-demand during
@@ -42,71 +44,60 @@ public class BoxController {
 
     @Autowired
     private Tracer tracer;
-
     private RestTemplate restTemplate;
 
     public BoxController() {
     }
 
+    @PostConstruct
+    private void init () {
+        restTemplate = new RestTemplate();
+        
+        polynome = new Polynome(coefficients);
+
+        address_time_list = new ArrayList<>();
+        for (int i = 0; i < remote_calls.size(); ++i) {
+            // format <address to call>@<percent before calling>
+            String[] address_time = remote_calls.get(i).split("@");
+            assert address_time.length == 2;
+            address_time_list.add(new Pair(address_time[0],
+                                           Integer.parseInt(address_time[1])));
+        }
+        address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
+    }
+
     @RequestMapping("/*")
     private ResponseEntity<String> handle(Double x, @RequestHeader Map<String, String> headers) {
-        headers.forEach((k, v) -> System.out.println(String.format("K %s, V %s", k.toString(), v.toString())));
-
-
         var start = LocalDateTime.now();
-
-        if (Objects.isNull(polynome)) { // lazy loading
-            polynome = new Polynome(coefficients);
-            restTemplate = new RestTemplate();
-        }
-
-        if (Objects.isNull(address_time_list)) { // lazy loading
-            address_time_list = new ArrayList<>();
-            for (int i = 0; i < remote_calls.size(); ++i) {
-                String[] address_time = remote_calls.get(i).split("@");
-                assert address_time.length == 2;
-                address_time_list.add(new Pair(address_time[0],
-                        Integer.parseInt(address_time[1])));
-            }
-            address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
-        }
 
         if (Objects.isNull(x)) // default value
             x = 0.;
-
-        // TextMap tm = new TextMapAdapter(headers);
-        // SpanContext parentSpan = tracer.extract(Format.Builtin.HTTP_HEADERS, tm);
-        // var span = tracer.buildSpan("woof").asChildOf(parentSpan).start();
 
         var duration = Duration.between(start, LocalDateTime.now());
         var limit = polynome.get(x);
 
         int i = 0;
         logger.info(String.format("This box must run during %s ms.",
-                limit.toMillis()));
+                                  limit.toMillis()));
         logger.info(String.format("This box must call %s other boxes.",
-                address_time_list.size()));
+                                  address_time_list.size()));
         while (duration.minus(limit).isNegative()) {
             double progress = (double) duration.toMillis() /
-                    (double) limit.toMillis() * 100.;
+                (double) limit.toMillis() * 100.;
 
             while (i < address_time_list.size() &&
-                    progress > address_time_list.get(i).second) {
-                // var url = String.format("%s?x=%s", address_time_list.get(i).first, x);
+                   progress > address_time_list.get(i).second) {
                 var url = String.format("%s", address_time_list.get(i).first);
                 Double finalX = x;
                 CompletableFuture<String> future =
-                        CompletableFuture.supplyAsync(() -> {
-                            // (TODO) rest template bean
+                    CompletableFuture.supplyAsync(() -> {
                             logger.info(String.format("Calling %s at %s percent.",
-                                    url, progress));
+                                                      url, progress));
 
                             HttpHeaders myheader = new HttpHeaders();
-                            for (var header : headers.keySet()) {
-                                if (header.contains("x-")) {
+                            for (var header : headers.keySet())
+                                if (header.contains("x-")) // propagate tracing headers
                                     myheader.set(header, headers.get(header));
-                                }
-                            }
 
                             MultiValueMap<String, String> args = new LinkedMultiValueMap<>();
                             args.add("x", finalX.toString());
@@ -117,15 +108,11 @@ public class BoxController {
                         });
                 ++i;
             }
-
+            
             duration = Duration.between(start, LocalDateTime.now());
         }
-
-        // try {
+        
         return new ResponseEntity<String>(":)", HttpStatus.OK);
-        // } finally {
-        //    span.finish();
-        // }
     }
 
 }
