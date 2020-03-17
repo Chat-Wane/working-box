@@ -6,7 +6,11 @@ deploy_envoy:
 	docker run -ti -p 80:80 front-envoy:latest
 
 deploy_service1:
-	JAEGER_SERVICE_NAME=box1 JAEGER_PROPAGATION=b3 JAEGER_ENDPOINT=http://192.168.99.100/api/traces SPRING_APPLICATION_NAME=working-box1 SERVER_PORT=8080 BOX_REMOTE_CALLS=http://localhost:8081@80 mvn spring-boot:run
+	JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces SPRING_APPLICATION_NAME=working-box1 SERVER_PORT=8080 BOX_REMOTE_CALLS=http://localhost:8081@80,http://localhost:8082@80 mvn spring-boot:run
 
 deploy_service2:
-	JAEGER_SERVICE_NAME=box2 JAEGER_PROPAGATION=b3 JAEGER_ENDPOINT=http://192.168.99.100/api/traces SPRING_APPLICATION_NAME=working-box2 SERVER_PORT=8081 BOX_POLYNOME_COEFFICIENTS=100,0,10 BOX_REMOTE_CALLS=http://localhost:8082@120 mvn spring-boot:run 
+	JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces SPRING_APPLICATION_NAME=working-box2 SERVER_PORT=8081 BOX_POLYNOME_COEFFICIENTS=100,0,10 BOX_REMOTE_CALLS=http://localhost:8082@160 mvn spring-boot:run
+
+deploy_service3:
+	JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces SPRING_APPLICATION_NAME=working-box3 SERVER_PORT=8082 BOX_POLYNOME_COEFFICIENTS=100,0,20 BOX_REMOTE_CALLS=http://localhost:8083@160 mvn spring-boot:run
+
