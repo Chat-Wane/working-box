@@ -59,9 +59,10 @@ public class BoxController {
         for (int i = 0; i < remote_calls.size(); ++i) {
             // format <address to call>@<percent before calling>
             String[] address_time = remote_calls.get(i).split("@");
-            assert address_time.length == 2;
-            address_time_list.add(new Pair(address_time[0],
-                                           Integer.parseInt(address_time[1])));
+            assert (address_time.length == 2);
+            var atProgress = Integer.parseInt(address_time[1]);
+            assert (atProgress >= 0) && (atProgress <= 100);
+            address_time_list.add(new Pair(address_time[0], atProgress));
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
     }
