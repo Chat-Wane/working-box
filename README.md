@@ -8,7 +8,7 @@ workflow that can be checked, and used at runtime or postmortem. Along
 with energy monitoring of services, another service may be able to map
 the consumption of services to input parameters.
 
-# Usage
+## Usage
 
 Either by modifying the ```application.properties``` file or
 environment variable. The following command starts the
