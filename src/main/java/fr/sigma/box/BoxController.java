@@ -1,6 +1,10 @@
 package fr.sigma.box;
 
 import io.opentracing.Tracer;
+import io.opentracing.Scope;
+import io.opentracing.ScopeManager;
+import io.opentracing.Span;
+import io.opentracing.tag.StringTag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -32,7 +36,8 @@ import org.apache.commons.lang3.time.DurationFormatUtils;
 public class BoxController {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
-
+    public static final StringTag PARAMETERS = new StringTag("parameters");
+    
     @Value("#{'${box.polynome.coefficients}'.split(',')}")
     private List<Double> coefficients;
     private Polynome polynome; // could become List<Polynome>
@@ -41,6 +46,7 @@ public class BoxController {
     private List<String> remote_calls;
     private ArrayList<Pair<String, Integer>> address_time_list;
 
+    @Autowired
     private Tracer tracer;
     private RestTemplate restTemplate;
 
@@ -67,10 +73,14 @@ public class BoxController {
     @RequestMapping("/*")
     private ResponseEntity<String> handle(Double x,
                                           @RequestHeader Map<String, String> headers) {
+        var start = LocalDateTime.now();
+        
         if (Objects.isNull(polynome)) { init(); } // lazy loading
         if (Objects.isNull(x)) { x = 0.; } // default value
+
+        Span currentSpan = tracer.scopeManager().activeSpan();
+        currentSpan.setTag(PARAMETERS, String.format("[{\"x\":\"%s\"}]", x));
         
-        var start = LocalDateTime.now();
         var duration = Duration.between(start, LocalDateTime.now());
         var limit = polynome.get(x);
         logger.info(String.format("This box must run during %s and call %s other boxes",
