@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import org.apache.commons.lang3.time.DurationFormatUtils;
 
 
 
@@ -32,12 +33,11 @@ public class BoxController {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 
-    @Value("#{'${box.polynome.coefficients:0.}'.split(',')}")
+    @Value("#{'${box.polynome.coefficients}'.split(',')}")
     private List<Double> coefficients;
-    // (TODO) maybe think of multiple polynomes. and x, y, z etc. args
-    private Polynome polynome;
+    private Polynome polynome; // could become List<Polynome>
 
-    @Value("#{'${box.remote.calls:}'.split(',')}")
+    @Value("#{'${box.remote.calls}'.split(',')}")
     private List<String> remote_calls;
     private ArrayList<Pair<String, Integer>> address_time_list;
 
@@ -47,12 +47,11 @@ public class BoxController {
     public BoxController() {
     }
 
-    @RequestMapping("/*")
-    private ResponseEntity<String> handle(Double x, @RequestHeader Map<String, String> headers) {
+    private void init() {
         restTemplate = new RestTemplate();
         
         polynome = new Polynome(coefficients);
-
+        
         address_time_list = new ArrayList<>();
         for (int i = 0; i < remote_calls.size(); ++i) {
             // format <address to call>@<percent before calling>
@@ -63,21 +62,22 @@ public class BoxController {
             address_time_list.add(new Pair(address_time[0], atProgress));
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
-
+    }
+    
+    @RequestMapping("/*")
+    private ResponseEntity<String> handle(Double x,
+                                          @RequestHeader Map<String, String> headers) {
+        if (Objects.isNull(polynome)) { init(); } // lazy loading
+        if (Objects.isNull(x)) { x = 0.; } // default value
         
         var start = LocalDateTime.now();
-
-        if (Objects.isNull(x)) // default value
-            x = 0.;
-
         var duration = Duration.between(start, LocalDateTime.now());
         var limit = polynome.get(x);
-
-        int i = 0;
-        logger.info(String.format("This box must run during %s ms.",
-                                  limit.toMillis()));
-        logger.info(String.format("This box must call %s other boxes.",
+        logger.info(String.format("This box must run during %s and call %s other boxes",
+                                  DurationFormatUtils.formatDurationHMS(limit.toMillis()),
                                   address_time_list.size()));
+        
+        int i = 0;
         while (duration.minus(limit).isNegative()) {
             double progress = (double) duration.toMillis() /
                 (double) limit.toMillis() * 100.;
@@ -96,10 +96,10 @@ public class BoxController {
                                 if (header.contains("x-")) // propagate tracing headers
                                     myheader.set(header, headers.get(header));
 
-                            MultiValueMap<String, String> args = new LinkedMultiValueMap<>();
+                            var args = new LinkedMultiValueMap<String, String>();
                             args.add("x", finalX.toString());
 
-                            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(args, myheader);
+                            var request = new HttpEntity<MultiValueMap<String, String>>(args, myheader);
 
                             return restTemplate.postForEntity(url, request, String.class, args).toString();
                         });
