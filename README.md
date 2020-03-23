@@ -20,7 +20,11 @@ At 80 percent of the execution time, the service calls two other services
 with the same input ```x```. 
 
 ```
-JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces SPRING_APPLICATION_NAME=working-box1 SERVER_PORT=8080 BOX_POLYNOME_COEFFICIENTS=1000.,10.,100. BOX_REMOTE_CALLS=http://localhost:8081@80,http://localhost:8082@80 mvn spring-boot:run
+JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces \
+SPRING_APPLICATION_NAME=working-box1 SERVER_PORT=8080 \
+BOX_POLYNOME_COEFFICIENTS=1000.,10.,100. \
+BOX_REMOTE_CALLS=http://localhost:8081@80,http://localhost:8082@80 \
+mvn spring-boot:run
 ```
 
 To call this service: ```curl "http://localhost:8080?x=10"```
