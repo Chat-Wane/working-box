@@ -105,6 +105,7 @@ public class BoxController {
                             for (var header : headers.keySet())
                                 if (header.contains("x-")) // propagate tracing headers
                                     myheader.set(header, headers.get(header));
+                            myheader.set("x-b3-spanid", currentSpan.context().toSpanId());
 
                             var args = new LinkedMultiValueMap<String, String>();
                             args.add("x", finalX.toString());
