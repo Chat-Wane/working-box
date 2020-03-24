@@ -29,4 +29,7 @@ mvn spring-boot:run
 
 To call this service: ```curl "http://localhost:8080?x=10"```
 
+By chaining boxes, the result on Jaeger looks like the screenshot
+below.
 
+![Monitoring containers](img/screenshot.png)
