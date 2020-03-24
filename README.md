@@ -30,6 +30,9 @@ mvn spring-boot:run
 To call this service: ```curl "http://localhost:8080?x=10"```
 
 By chaining boxes, the result on Jaeger looks like the screenshot
-below.
+below. A first box calls two other boxes at 80% of its 1s workflow. A
+second box executes its workflow during ~100s. A third box calls a
+fourth one at 80% of its 11s workflow. The forth box execution time is
+5s.
 
 ![Monitoring containers](img/screenshot.png)
