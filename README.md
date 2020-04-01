@@ -22,12 +22,12 @@ with the same input ```x```.
 ```
 JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces \
 SPRING_APPLICATION_NAME=working-box1 SERVER_PORT=8080 \
-BOX_POLYNOME_COEFFICIENTS=1000.,10.,100. \
+BOX_POLYNOMES_COEFFICIENTS=1000.,10.,100. \
 BOX_REMOTE_CALLS=http://localhost:8081@80,http://localhost:8082@80 \
 mvn spring-boot:run
 ```
 
-To call this service: ```curl "http://localhost:8080?x=10"```
+To call this service: ```curl "http://localhost:8080?args=10"```
 
 By chaining boxes, the result on Jaeger looks like the screenshot
 below. A first box calls two other boxes at 80% of its 1s workflow. A
