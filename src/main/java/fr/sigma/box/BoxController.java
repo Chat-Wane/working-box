@@ -20,10 +20,12 @@ import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 
 
@@ -38,9 +40,9 @@ public class BoxController {
     private Logger logger = LoggerFactory.getLogger(getClass());
     public static final StringTag PARAMETERS = new StringTag("parameters");
     
-    @Value("#{'${box.polynome.coefficients}'.split(',')}")
-    private List<Double> coefficients;
-    private Polynome polynome; // could become List<Polynome>
+    @Value("#{'${box.polynomes.coefficients}'.split('-')}")
+    private List<String> coefficients;
+    private Polynomes polynomes; 
 
     @Value("#{'${box.remote.calls}'.split(',')}")
     private List<String> remote_calls;
@@ -56,7 +58,21 @@ public class BoxController {
     private void init() {
         restTemplate = new RestTemplate();
         
-        polynome = new Polynome(coefficients);
+        polynomes = new Polynomes();
+        for (String coefficient : coefficients) {
+            // format <a>,<b>,...,<k>[@index: default 0]
+            String[] coefficient_index = coefficient.split("@");
+            String[] coefsOfCurrentPoly = coefficient_index[0].split(",");
+            
+            var coefs = new ArrayList<Double>();
+            for (int i = 0; i < coefsOfCurrentPoly.length; ++i)
+                coefs.add( Double.parseDouble(coefsOfCurrentPoly[i]) );
+            
+            var index = coefficient_index.length > 1 ?
+                Integer.parseInt(coefficient_index[1]) :
+                0;
+            polynomes.add(new Polynome(coefs), index);
+        }
         
         address_time_list = new ArrayList<>();
         for (int i = 0; i < remote_calls.size(); ++i) {
@@ -71,18 +87,23 @@ public class BoxController {
     }
     
     @RequestMapping("/*")
-    private ResponseEntity<String> handle(Double x,
+    private ResponseEntity<String> handle(Double[] args,
                                           @RequestHeader Map<String, String> headers) {
         var start = LocalDateTime.now();
-        
-        if (Objects.isNull(polynome)) { init(); } // lazy loading
-        if (Objects.isNull(x)) { x = 0.; } // default value
-
-        Span currentSpan = tracer.scopeManager().activeSpan();
-        currentSpan.setTag(PARAMETERS, String.format("[{\"x\":\"%s\"}]", x));
-        
         var duration = Duration.between(start, LocalDateTime.now());
-        var limit = polynome.get(x);
+        
+        if (Objects.isNull(polynomes)) { init(); } // lazy loading
+
+        // report important parameters of this box
+        Span currentSpan = tracer.scopeManager().activeSpan();
+        var parameters = new ArrayList<String>();
+        for (Integer index : polynomes.indices) 
+            parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index]));
+        var parametersString = String.format("[%s]", String.join(",", parameters));
+        currentSpan.setTag(PARAMETERS, parametersString);
+
+        var polyResult = polynomes.get(args);
+        var limit = polyResult > 0 ? Duration.ofMillis(polyResult) : Duration.ZERO;  
         logger.info(String.format("This box must run during %s and call %s other boxes",
                                   DurationFormatUtils.formatDurationHMS(limit.toMillis()),
                                   address_time_list.size()));
@@ -95,24 +116,27 @@ public class BoxController {
             while (i < address_time_list.size() &&
                    progress > address_time_list.get(i).second) {
                 var url = String.format("%s", address_time_list.get(i).first);
-                Double finalX = x;
+                Double[] finalArgs = args;
                 CompletableFuture<String> future =
                     CompletableFuture.supplyAsync(() -> {
                             logger.info(String.format("Calling %s at %s percent.",
-                                                      url, progress));
+                                                      url, (int) progress));
 
-                            HttpHeaders myheader = new HttpHeaders();
+                            var myheader = new HttpHeaders();
                             for (var header : headers.keySet())
                                 if (header.contains("x-")) // propagate tracing headers
                                     myheader.set(header, headers.get(header));
                             myheader.set("x-b3-spanid", currentSpan.context().toSpanId());
 
-                            var args = new LinkedMultiValueMap<String, String>();
-                            args.add("x", finalX.toString());
+                            var argsToSend = new LinkedMultiValueMap<String, String>();
+                            argsToSend.add("args",
+                                           Arrays.stream(finalArgs)
+                                           .map(String::valueOf)
+                                           .collect(Collectors.joining(",")));
 
-                            var request = new HttpEntity<MultiValueMap<String, String>>(args, myheader);
+                            var request = new HttpEntity<MultiValueMap<String, String>>(argsToSend, myheader);
 
-                            return restTemplate.postForEntity(url, request, String.class, args).toString();
+                            return restTemplate.postForEntity(url, request, String.class, argsToSend).toString();
                         });
                 ++i;
             }

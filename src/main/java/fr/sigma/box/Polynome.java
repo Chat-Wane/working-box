@@ -1,6 +1,5 @@
 package fr.sigma.box;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,11 +24,11 @@ public class Polynome {
             coefficients.add(coefs.get(i));
     }
 
-    public Duration get(double x) {
+    public long get(double x) {
         double result = 0.;
         for (int i = 0; i < coefficients.size(); ++i)
             result += coefficients.get(i) * Math.pow(x, i);
-        return result > 0 ? Duration.ofMillis((long) result) : Duration.ZERO;
+        return (long) result;
     }
     
 }
