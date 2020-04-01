@@ -8,7 +8,7 @@ import java.util.List;
 public class Polynome {
 
     // c0 + c1*x + c2*x² ...
-    private final ArrayList<Double> coefficients = new ArrayList<>(); 
+    public final ArrayList<Double> coefficients = new ArrayList<>(); 
 
     public Polynome() {
         coefficients.add(0.);

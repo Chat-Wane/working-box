@@ -7,7 +7,7 @@ import java.util.ArrayList;
 
 public class Polynomes {
 
-    private final ArrayList<Polynome> polynomes = new ArrayList<>();
+    public final ArrayList<Polynome> polynomes = new ArrayList<>();
     public final ArrayList<Integer> indices = new ArrayList<>();
     
     public Polynomes() { }

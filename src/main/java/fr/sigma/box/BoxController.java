@@ -97,8 +97,13 @@ public class BoxController {
         // report important parameters of this box
         Span currentSpan = tracer.scopeManager().activeSpan();
         var parameters = new ArrayList<String>();
-        for (Integer index : polynomes.indices) 
-            parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index]));
+        for (int i = 0; i < polynomes.indices.size(); ++i) {
+            if (polynomes.polynomes.get(i).coefficients.size() > 1) {
+                // > 1 depends on a variable x, otherwise constant
+                var index = polynomes.indices.get(i);
+                parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index]));
+            }
+        }
         var parametersString = String.format("[%s]", String.join(",", parameters));
         currentSpan.setTag(PARAMETERS, parametersString);
 
