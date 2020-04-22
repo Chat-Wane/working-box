@@ -48,6 +48,12 @@ public class BoxController {
     private List<String> remote_calls;
     private ArrayList<Pair<String, Integer>> address_time_list;
 
+    @Value("${box.energy.call}")
+    private String energy_call_url;
+
+    @Value("${spring.application.name}")
+    private String service_name;
+    
     @Autowired
     private Tracer tracer;
     private RestTemplate restTemplate;
@@ -107,6 +113,18 @@ public class BoxController {
         var parametersString = String.format("[%s]", String.join(",", parameters));
         currentSpan.setTag(PARAMETERS, parametersString);
 
+        if (headers.keySet().contains("objective")) {
+            var objective = headers.get("objective");
+            logger.info(String.format("This box has an energy consumption objective of %s",
+                                      objective));
+            // (TODO) local mode, remote mode, none
+            System.out.println("Calling " + String.format("%s?name=handle@%s&objective=%s", energy_call_url, service_name, objective));
+            var response = restTemplate.getForEntity(String.format("%s?name=handle@%s&objective=%s", energy_call_url, service_name, objective), String.class);
+            System.out.println("RESPONSE +  " + response.toString());
+        }
+
+
+        
         var polyResult = polynomes.get(args);
         var limit = polyResult > 0 ? Duration.ofMillis(polyResult) : Duration.ZERO;  
         logger.info(String.format("This box must run during %s and call %s other boxes",
