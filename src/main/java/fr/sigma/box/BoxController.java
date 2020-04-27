@@ -50,6 +50,7 @@ public class BoxController {
 
     @Value("${box.energy.call}")
     private String energy_call_url;
+    private EnergyAwareness energyAwareness;
 
     @Value("${spring.application.name}")
     private String service_name;
@@ -90,6 +91,15 @@ public class BoxController {
             address_time_list.add(new Pair(address_time[0], atProgress));
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
+
+        // (TODO) handle errors
+        var jsonEnergyAwareness = restTemplate.getForEntity(String.format("%s?name=handle@%s",
+                                                                          energy_call_url,
+                                                                          service_name),
+                                                            String.class).getBody();
+        energyAwareness = new EnergyAwareness(service_name);
+        System.out.println(jsonEnergyAwareness);
+        energyAwareness.update(jsonEnergyAwareness);
     }
     
     @RequestMapping("/*")
@@ -117,10 +127,6 @@ public class BoxController {
             var objective = headers.get("objective");
             logger.info(String.format("This box has an energy consumption objective of %s",
                                       objective));
-            // (TODO) local mode, remote mode, none
-            System.out.println("Calling " + String.format("%s?name=handle@%s&objective=%s", energy_call_url, service_name, objective));
-            var response = restTemplate.getForEntity(String.format("%s?name=handle@%s&objective=%s", energy_call_url, service_name, objective), String.class);
-            System.out.println("RESPONSE +  " + response.toString());
         }
 
 

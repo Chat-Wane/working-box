@@ -4,6 +4,8 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.Collections;
 import java.util.ArrayList;
+import java.util.Iterator;
+import org.json.*;
 
 
 
@@ -16,7 +18,7 @@ public class EnergyAwareness {
 
     private TreeMap<String, Pair<Double, Double>> funcToMinMax;
 
-    private TreeMap<Double[], Double> xy;
+    private TreeMap<String, Double> xy;
 
     private final String name;
     
@@ -26,24 +28,37 @@ public class EnergyAwareness {
         this.name = name;
     }
     
-    public void update() {
-        // (TODO)
+    public void update(String message) {
+        // (TODO) not handle manually json parsing
+        JSONObject obj = new JSONObject(message);
+        var xs = obj.getJSONObject("xy").getJSONArray("x");
+        var ys = obj.getJSONObject("xy").getJSONArray("y");
+        for (int i = 0; i < xs.length(); ++i){
+            String x = xs.getString(i);
+            Double y = ys.getDouble(i);
+            xy.put(x, y);
+        }
+
+        var minmax = obj.getJSONObject("minmax");
+        Iterator<String> keys = minmax.keys();
+        
+        while (keys.hasNext()) {
+            var remote = keys.next();
+            var min = minmax.getJSONObject(remote).getDouble("min");
+            var max = minmax.getJSONObject(remote).getDouble("max");
+            funcToMinMax.put(remote, new Pair(min, max));
+        }
     }
    
     public TreeMap<String, Double> getObjectives(double objective) {
         var results = new TreeMap<String, Double>();
 
         // default value
-        if (objective < 0){
-            results.put(name, -1);
+        if (objective < 0) {
+            results.put(name, -1.);
             for (String remote : funcToMinMax.keySet()) {
-                results.put(remote, -1);
+                results.put(remote, -1.);
             }
-        }
-        
-        if (objective < 0 && funcToMinMax.size() == 0) {
-            // default value when no data
-
             return results;
         }
         
@@ -89,14 +104,21 @@ public class EnergyAwareness {
         if (objective < 0) return null; // objective unknown
         // (TODO) sort xy to get logarithmic complexity
         var min = Double.POSITIVE_INFINITY;
-        Double[] args = null;
-        for (Map.Entry<Double[], Double> kv : xy.entrySet()) {
+        String args = null;
+        for (Map.Entry<String, Double> kv : xy.entrySet()) {
             if (Math.abs(objective - kv.getValue()) < min) {
                 min = Math.abs(objective - kv.getValue());
                 args = kv.getKey();
             }
         }
-        return args;
+
+        var toParse = new JSONArray(args);
+        Double[] xs = new Double[toParse.length()];
+        for (int i = 0; i < toParse.length(); ++i) {
+            xs[i] = toParse.getDouble(i);
+        }
+        
+        return xs;
     }
 
 

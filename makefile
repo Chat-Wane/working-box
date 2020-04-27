@@ -16,7 +16,7 @@ deploy_envoy:
 	docker run -ti -p 80:80 front-envoy:latest
 
 deploy_service1:
-	BOX_ENERGY_CALL=http://localhost:5000/objectives JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces SPRING_APPLICATION_NAME=box-8080 SERVER_PORT=8080 BOX_POLYNOMES_COEFFICIENTS=1000-2000,10@1 BOX_REMOTE_CALLS=http://localhost:8081@80,http://localhost:8082@80 mvn spring-boot:run
+	BOX_ENERGY_CALL=http://localhost:5000/ JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces SPRING_APPLICATION_NAME=box-8080 SERVER_PORT=8080 BOX_POLYNOMES_COEFFICIENTS=1000-2000,10@1 BOX_REMOTE_CALLS=http://localhost:8081@80,http://localhost:8082@80 mvn spring-boot:run
 
 deploy_service2:
 	JAEGER_ENDPOINT=http://192.168.99.100:14268/api/traces SPRING_APPLICATION_NAME=working-box2 SERVER_PORT=8081 BOX_POLYNOMES_COEFFICIENTS=100,0,10 BOX_REMOTE_CALLS=http://localhost:8082@160 mvn spring-boot:run
