@@ -112,7 +112,8 @@ public class EnergyAwareness {
             }
         }
 
-        var toParse = new JSONArray(args);
+        var toParse = new JSONArray("["+ args+"]"); // (TODO) fix "[" "]" because it was not list
+        //        var toParse = new JSONArray(args);
         Double[] xs = new Double[toParse.length()];
         for (int i = 0; i < toParse.length(); ++i) {
             xs[i] = toParse.getDouble(i);

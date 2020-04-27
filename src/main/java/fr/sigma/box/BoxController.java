@@ -123,10 +123,18 @@ public class BoxController {
         var parametersString = String.format("[%s]", String.join(",", parameters));
         currentSpan.setTag(PARAMETERS, parametersString);
 
+        TreeMap<String, Double> objectives = null;
         if (headers.keySet().contains("objective")) {
             var objective = headers.get("objective");
             logger.info(String.format("This box has an energy consumption objective of %s",
                                       objective));
+            objectives = energyAwareness.getObjectives(Double.parseDouble(objective));
+            logger.info(String.format("Distributes energy objective as: %s.", objectives));
+
+            var solution = energyAwareness.solveObjective(objectives.get(service_name));
+            logger.info(String.format("Rewrites local arguments: %s -> %s",
+                                      Arrays.toString(parameters.toArray()),
+                                      Arrays.toString(solution)));
         }
 
 
@@ -146,6 +154,7 @@ public class BoxController {
                    progress > address_time_list.get(i).second) {
                 var url = String.format("%s", address_time_list.get(i).first);
                 Double[] finalArgs = args;
+                var finalObjectives = objectives;
                 CompletableFuture<String> future =
                     CompletableFuture.supplyAsync(() -> {
                             logger.info(String.format("Calling %s at %s percent.",
@@ -157,6 +166,13 @@ public class BoxController {
                                     myheader.set(header, headers.get(header));
                             myheader.set("x-b3-spanid", currentSpan.context().toSpanId());
 
+                            if (!Objects.isNull(finalObjectives)) {
+                                // (TODO) different name <-> url
+                                var port = url.split(":")[2];
+                                var name = String.format("handle@box-%s", port);
+                                myheader.set("objective", finalObjectives.get(name).toString());
+                            }
+
                             var argsToSend = new LinkedMultiValueMap<String, String>();
                             argsToSend.add("args",
                                            Arrays.stream(finalArgs)
@@ -165,8 +181,8 @@ public class BoxController {
 
                             var request = new HttpEntity<MultiValueMap<String, String>>(argsToSend, myheader);
 
-                            return restTemplate.postForEntity(url, request, String.class, argsToSend).toString();
-                        });
+                            return restTemplate.postForEntity(url, request, String.class, argsToSend).toString();}
+                            );
                 ++i;
             }
             
