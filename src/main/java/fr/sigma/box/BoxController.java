@@ -20,13 +20,18 @@ import org.springframework.http.ResponseEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.time.DurationFormatUtils;
+import org.apache.hadoop.util.bloom.CountingBloomFilter;
+import org.apache.hadoop.util.bloom.Key;
+import org.apache.hadoop.util.hash.Hash;
+import java.nio.ByteBuffer;
+import java.io.ByteArrayOutputStream;
+
 
 
 
@@ -52,6 +57,8 @@ public class BoxController {
     private String energy_call_url;
     private EnergyAwareness energyAwareness;
 
+    private CountingBloomFilter argsFilter; 
+    
     @Value("${spring.application.name}")
     private String service_name;
     
@@ -98,8 +105,9 @@ public class BoxController {
                                                                           service_name),
                                                             String.class).getBody();
         energyAwareness = new EnergyAwareness(service_name);
-        System.out.println(jsonEnergyAwareness);
         energyAwareness.update(jsonEnergyAwareness);
+        
+        argsFilter = new CountingBloomFilter(100, 3, Hash.JENKINS_HASH);
     }
     
     @RequestMapping("/*")
@@ -113,11 +121,13 @@ public class BoxController {
         // report important parameters of this box
         Span currentSpan = tracer.scopeManager().activeSpan();
         var parameters = new ArrayList<String>();
+        var doubleParameters = new ArrayList<Double>();
         for (int i = 0; i < polynomes.indices.size(); ++i) {
             if (polynomes.polynomes.get(i).coefficients.size() > 1) {
                 // > 1 depends on a variable x, otherwise constant
                 var index = polynomes.indices.get(i);
                 parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index]));
+                doubleParameters.add(args[index]);
             }
         }
         var parametersString = String.format("[%s]", String.join(",", parameters));
@@ -131,6 +141,29 @@ public class BoxController {
             objectives = energyAwareness.getObjectives(Double.parseDouble(objective));
             logger.info(String.format("Distributes energy objective as: %s.", objectives));
 
+
+            // check if the current parameters should be kept for the sake of discovery
+            // or not.
+            byte[] keyBytes = new byte[0];
+            for (Double parameter : doubleParameters) {
+                byte[] bytes = ByteBuffer.allocate(8).putDouble(parameter).array();
+                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+                try {
+                    outputStream.write(keyBytes);
+                    outputStream.write(bytes);
+                    keyBytes = outputStream.toByteArray();
+                } catch (Exception e){
+                    logger.warn("Could not write args as byte. Filter may not work.");
+                }
+            }
+            var key = new Key(keyBytes);
+
+            logger.info(String.format("Args have been seen roughly %s times before.",
+                                      argsFilter.approximateCount(key)));
+            argsFilter.add(key);
+            
+            // system.out.println(Arrays.toString(key));
+            
             var solution = energyAwareness.solveObjective(objectives.get(service_name));
             logger.info(String.format("Rewrites local arguments: %s -> %s",
                                       Arrays.toString(parameters.toArray()),
