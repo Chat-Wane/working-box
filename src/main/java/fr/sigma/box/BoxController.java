@@ -22,16 +22,15 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.time.DurationFormatUtils;
-import org.apache.hadoop.util.bloom.CountingBloomFilter;
-import org.apache.hadoop.util.bloom.Key;
-import org.apache.hadoop.util.hash.Hash;
-import java.nio.ByteBuffer;
-import java.io.ByteArrayOutputStream;
-
 
 
 
@@ -57,7 +56,7 @@ public class BoxController {
     private String energy_call_url;
     private EnergyAwareness energyAwareness;
 
-    private CountingBloomFilter argsFilter; 
+    private ArgsFilter argsFilter;
     
     @Value("${spring.application.name}")
     private String service_name;
@@ -106,8 +105,9 @@ public class BoxController {
                                                             String.class).getBody();
         energyAwareness = new EnergyAwareness(service_name);
         energyAwareness.update(jsonEnergyAwareness);
-        
-        argsFilter = new CountingBloomFilter(100, 3, Hash.JENKINS_HASH);
+
+        argsFilter = new ArgsFilter();
+        argsFilter.setThreshold(4);
     }
     
     @RequestMapping("/*")
@@ -140,34 +140,13 @@ public class BoxController {
                                       objective));
             objectives = energyAwareness.getObjectives(Double.parseDouble(objective));
             logger.info(String.format("Distributes energy objective as: %s.", objectives));
-
-
-            // check if the current parameters should be kept for the sake of discovery
-            // or not.
-            byte[] keyBytes = new byte[0];
-            for (Double parameter : doubleParameters) {
-                byte[] bytes = ByteBuffer.allocate(8).putDouble(parameter).array();
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                try {
-                    outputStream.write(keyBytes);
-                    outputStream.write(bytes);
-                    keyBytes = outputStream.toByteArray();
-                } catch (Exception e){
-                    logger.warn("Could not write args as byte. Filter may not work.");
-                }
+            
+            if (argsFilter.isTriedEnough(doubleParameters)) {                
+                var solution = energyAwareness.solveObjective(objectives.get(service_name));
+                logger.info(String.format("Rewrites local arguments: %s -> %s",
+                                          Arrays.toString(parameters.toArray()),
+                                          Arrays.toString(solution)));
             }
-            var key = new Key(keyBytes);
-
-            logger.info(String.format("Args have been seen roughly %s times before.",
-                                      argsFilter.approximateCount(key)));
-            argsFilter.add(key);
-            
-            // system.out.println(Arrays.toString(key));
-            
-            var solution = energyAwareness.solveObjective(objectives.get(service_name));
-            logger.info(String.format("Rewrites local arguments: %s -> %s",
-                                      Arrays.toString(parameters.toArray()),
-                                      Arrays.toString(solution)));
         }
 
 
