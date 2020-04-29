@@ -16,6 +16,8 @@ public class ArgsFilter {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 
+    // /!\ This bloom filter caps its count to 15. If we need higher values, we
+    // should switch to another implem' of counting bloom filter.
     private CountingBloomFilter counting;
 
     private int threshold;

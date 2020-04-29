@@ -1,4 +1,4 @@
-package  fr.sigma.box;
+package fr.sigma.box;
 
 import java.util.Map;
 import java.util.TreeMap;
