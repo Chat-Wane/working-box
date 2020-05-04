@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
 import smile.stat.distribution.KernelDensity;
+import smile.math.MathEx;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,9 +39,52 @@ public class LocalEnergyData {
         this.maxSize = maxSize;
     }
 
-    public double[] getCosts () {
+    public double[] getCosts() {
         return inputToCost.values().stream().mapToDouble(e->e).sorted().toArray();
     }
+
+    public ArrayList<Pair<Double, Double>> getIntervals() {
+        DoubleStream costAsStream = inputToCost.values().stream()
+            .mapToDouble(e->e).sorted();
+        double[] costAsDouble = costAsStream.toArray();
+        
+        var kernel = new KernelDensity(costAsDouble);
+        
+        int sampleSize = 100;
+        ArrayList<Double> sample = new ArrayList<Double>();
+        double minCost = inputToCost.values().stream()
+            .mapToDouble(e->e).min().getAsDouble();
+        double maxCost = inputToCost.values().stream()
+            .mapToDouble(e->e).max().getAsDouble();
+        for (int i=0; i<sampleSize; ++i) {
+            sample.add(kernel.p(minCost + (maxCost - minCost)/sampleSize * i));
+        }
+
+        double sd = Math.sqrt(MathEx.var(sample.stream().mapToDouble(e->e).toArray()));
+        double avg = MathEx.mean(sample.stream().mapToDouble(e->e).toArray());
+
+        double from = 0;
+        boolean building = false;
+        var results = new ArrayList<Pair<Double, Double>>();        
+        for (int i = 0; i < sample.size(); ++i) {
+            if ((avg - sd) <= sample.get(i) && sample.get(i) <= (avg + sd)) {
+                if (!building) {
+                    building = true;
+                    from = minCost + (maxCost - minCost)/sampleSize * i;
+                }
+            } else {
+                if (building) {
+                    building = false;
+                    var to = minCost + (maxCost - minCost)/sampleSize * i - 1;
+                    results.add(new Pair(from, to));
+                }
+            }
+        }
+        
+        return results;
+    }
+
+
     
     public void addEnergyData (ArrayList<Double> args, Double cost) {
         // (TODO) cache intermediate results

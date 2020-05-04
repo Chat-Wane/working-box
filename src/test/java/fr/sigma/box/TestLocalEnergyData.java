@@ -40,7 +40,7 @@ public class TestLocalEnergyData {
 
     @Test
     void addEnergyDataShuffledList() {
-        int NBINPUTS = 1000;
+        int NBINPUTS = 100;
         var led = new LocalEnergyData();
         led.setMaxSize(10);
 
@@ -59,5 +59,25 @@ public class TestLocalEnergyData {
 
         System.out.println(String.format("shuffled list -> %s",
                                          Arrays.toString(led.getCosts())));        
+    }
+
+    @Test
+    void getIntervalsSimple() {
+        int NBINPUTS = 100;
+        var led = new LocalEnergyData();
+        led.setMaxSize(10);
+
+        for (int i = 0; i < NBINPUTS; ++i) {            
+            var args = new ArrayList<Double>();
+            args.add((double) i);
+            led.addEnergyData(args, (double) i);
+        }
+
+        var intervals = led.getIntervals();
+        for (Pair<Double, Double> interval : intervals) {
+            System.out.print(String.format("[%s; %s[ ",
+                                           interval.first, interval.second));
+        }
+        System.out.println();
     }
 }
