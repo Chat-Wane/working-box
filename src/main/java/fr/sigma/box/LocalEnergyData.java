@@ -8,6 +8,9 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
 
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeSet;
+import com.google.common.collect.TreeRangeSet;
 import smile.stat.distribution.KernelDensity;
 import smile.math.MathEx;
 import org.slf4j.Logger;
@@ -43,7 +46,7 @@ public class LocalEnergyData {
         return inputToCost.values().stream().mapToDouble(e->e).sorted().toArray();
     }
 
-    public ArrayList<Pair<Double, Double>> getIntervals() {
+    public RangeSet getIntervals() {
         DoubleStream costAsStream = inputToCost.values().stream()
             .mapToDouble(e->e).sorted();
         double[] costAsDouble = costAsStream.toArray();
@@ -65,7 +68,7 @@ public class LocalEnergyData {
 
         double from = 0;
         boolean building = false;
-        var results = new ArrayList<Pair<Double, Double>>();        
+        RangeSet<Double> results = TreeRangeSet.create();
         for (int i = 0; i < sample.size(); ++i) {
             if ((avg - sd) <= sample.get(i) && sample.get(i) <= (avg + sd)) {
                 if (!building) {
@@ -76,9 +79,14 @@ public class LocalEnergyData {
                 if (building) {
                     building = false;
                     var to = minCost + (maxCost - minCost)/sampleSize * i - 1;
-                    results.add(new Pair(from, to));
+                    results.add(Range.closed(from, to));
                 }
             }
+        }
+
+        if (building) { // last bound
+            var to = minCost + (maxCost - minCost)/sampleSize * sample.size() - 1;
+            results.add(Range.closed(from, to));
         }
         
         return results;

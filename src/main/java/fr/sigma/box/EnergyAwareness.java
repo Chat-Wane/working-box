@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Iterator;
 import org.json.*;
+import com.google.common.collect.RangeSet;
 
 
 
@@ -16,40 +17,53 @@ import org.json.*;
  */
 public class EnergyAwareness {
 
-    private TreeMap<String, Pair<Double, Double>> funcToMinMax;
-
-    private TreeMap<String, Double> xy;
+    private TreeMap<String, RangeSet> funcToIntervals;
+    private LocalEnergyData localEnergyData;
 
     private final String name;
     
     public EnergyAwareness(String name) {
-        funcToMinMax = new TreeMap();
-        xy = new TreeMap();
+        funcToIntervals = new TreeMap();
+        localEnergyData = new LocalEnergyData();
+        localEnergyData.setMaxSize(10); // (TODO) configuration
+        
         this.name = name;
     }
     
-    public void update(String message) {
-        // (TODO) not handle manually json parsing
-        JSONObject obj = new JSONObject(message);
-        var xs = obj.getJSONObject("xy").getJSONArray("x");
-        var ys = obj.getJSONObject("xy").getJSONArray("y");
-        for (int i = 0; i < xs.length(); ++i){
-            String x = xs.getString(i);
-            Double y = ys.getDouble(i);
-            xy.put(x, y);
-        }
+    // public void update(String message) {
+    //     // (TODO) not handle manually json parsing
+    //     JSONObject obj = new JSONObject(message);
+    //     var xs = obj.getJSONObject("xy").getJSONArray("x");
+    //     var ys = obj.getJSONObject("xy").getJSONArray("y");
+    //     for (int i = 0; i < xs.length(); ++i){
+    //         String x = xs.getString(i);
+    //         Double y = ys.getDouble(i);
+    //         xy.put(x, y);
+    //     }
 
-        var minmax = obj.getJSONObject("minmax");
-        Iterator<String> keys = minmax.keys();
+    //     var minmax = obj.getJSONObject("minmax");
+    //     Iterator<String> keys = minmax.keys();
         
-        while (keys.hasNext()) {
-            var remote = keys.next();
-            var min = minmax.getJSONObject(remote).getDouble("min");
-            var max = minmax.getJSONObject(remote).getDouble("max");
-            funcToMinMax.put(remote, new Pair(min, max));
-        }
+    //     while (keys.hasNext()) {
+    //         var remote = keys.next();
+    //         var min = minmax.getJSONObject(remote).getDouble("min");
+    //         var max = minmax.getJSONObject(remote).getDouble("max");
+    //         funcToMinMax.put(remote, new Pair(min, max));
+    //     }
+    // }
+
+    /**
+     * Combine local intervals with ones got from remote services to
+     * create a new interval. It should be sent to parent service.
+     */
+    public RangeSet combineIntervals() {
+        return null; // (TODO)
     }
-   
+
+    public RangSet _combination(RangeSet i1, RangeSet i2) {
+        return null; // (TODO)
+    }
+    
     public TreeMap<String, Double> getObjectives(double objective) {
         var results = new TreeMap<String, Double>();
 

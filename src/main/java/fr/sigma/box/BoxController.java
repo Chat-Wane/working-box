@@ -109,6 +109,14 @@ public class BoxController {
         argsFilter = new ArgsFilter();
         argsFilter.setThreshold(4);
     }
+
+    // (TODO) disabled
+    @RequestMapping("/getLocalEnergyDataIntervals")
+    private ResponseEntity<String> getLocalEnergyDataIntervals() {
+        // return new ResponseEntity<String>( , HttpStatus.OK);
+        // (TODO) to Json
+        return null;
+    }
     
     @RequestMapping("/*")
     private ResponseEntity<String> handle(Double[] args,
