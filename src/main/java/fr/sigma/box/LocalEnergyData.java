@@ -46,7 +46,7 @@ public class LocalEnergyData {
         return inputToCost.values().stream().mapToDouble(e->e).sorted().toArray();
     }
 
-    public RangeSet getIntervals() {
+    public RangeSet<Double> getIntervals() {
         DoubleStream costAsStream = inputToCost.values().stream()
             .mapToDouble(e->e).sorted();
         double[] costAsDouble = costAsStream.toArray();

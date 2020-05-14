@@ -5,9 +5,13 @@ import java.util.TreeMap;
 import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Iterator;
-import org.json.*;
-import com.google.common.collect.RangeSet;
 
+import org.json.*;
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeSet;
+import knapsack.Knapsack;
+import knapsack.model.OneOrNoneFromGroupProblem;
+    
 
 
 /**
@@ -17,7 +21,7 @@ import com.google.common.collect.RangeSet;
  */
 public class EnergyAwareness {
 
-    private TreeMap<String, RangeSet> funcToIntervals;
+    private TreeMap<String, RangeSet<Double>> funcToIntervals;
     private LocalEnergyData localEnergyData;
 
     private final String name;
@@ -30,7 +34,9 @@ public class EnergyAwareness {
         this.name = name;
     }
     
-    // public void update(String message) {
+    public void update(String message) {
+        // (TODO)
+    }
     //     // (TODO) not handle manually json parsing
     //     JSONObject obj = new JSONObject(message);
     //     var xs = obj.getJSONObject("xy").getJSONArray("x");
@@ -60,31 +66,76 @@ public class EnergyAwareness {
         return null; // (TODO)
     }
 
-    public RangSet _combination(RangeSet i1, RangeSet i2) {
+    public RangeSet _combination(RangeSet i1, RangeSet i2) {
         return null; // (TODO)
     }
-    
-    public TreeMap<String, Double> getObjectives(double objective) {
-        var results = new TreeMap<String, Double>();
 
-        // default value
+
+    public TreeMap<String, Double> getObjectives(double objective) {
+        double ratio = objective/100.; // (TODO) configurable scaling
+        var groupToFunc = new TreeMap<Integer, String>();
+
+        var weightAsList = new ArrayList<Integer>();
+        var profitAsList = new ArrayList<Integer>();
+        var groupAsList = new ArrayList<Integer>();
+
+        weightAsList.add(0); // placeholders
+        profitAsList.add(1);
+        groupAsList.add(-1);
+        
+        for (Range<Double> interval :  localEnergyData.getIntervals().asRanges()) {
+            weightAsList.add((int)(interval.lowerEndpoint() * ratio));
+            profitAsList.add(1);
+            groupAsList.add(0);
+        }
+
+        int groupIndex = 1;
+        for (Map.Entry<String, RangeSet<Double>> kv : funcToIntervals.entrySet()) {
+            for (var intervals : kv.getValue().asRanges()) {
+                weightAsList.add((int)(intervals.lowerEndpoint() * ratio));
+                profitAsList.add(1);
+                groupAsList.add(groupIndex);
+            }
+            groupIndex += 1;
+        }
+
+        var problem = new OneOrNoneFromGroupProblem(100,
+                                                    profitAsList.stream().mapToInt(i->i).toArray(),
+                                                    weightAsList.stream().mapToInt(i->i).toArray(),
+                                                    groupAsList.stream().mapToInt(i->i).toArray());
+        
+        var knapsack = new Knapsack(problem);
+        var solution = knapsack.solve();
+
+        // for (int i = 0; i < solution
+        
+        var funcToInterval = new TreeMap<String, RangeSet>();
+
+        
+        
+        return getObjectivesFromInterval(objective, funcToInterval);
+    }
+    
+    public TreeMap<String, Double> getObjectivesFromInterval(double objective,
+                                                 TreeMap<String, RangeSet> funcToInterval) {
+        var results = new TreeMap<String, Double>();
+        
+        // default value -1.
         if (objective < 0) {
             results.put(name, -1.);
-            for (String remote : funcToMinMax.keySet()) {
+            for (String remote : funcToInterval.keySet()) {
                 results.put(remote, -1.);
             }
             return results;
         }
         
-        var objectiveToDistribute = objective - min();
-        
+        var objectiveToDistribute = objective;        
         var funcToRange = new ArrayList<Pair<String, Double>>();
-        funcToRange.add(new Pair(name, max() - min()));
-        
-        for (Map.Entry<String, Pair<Double, Double>> kv : funcToMinMax.entrySet()) {
+        for (Map.Entry<String, RangeSet> kv : funcToInterval.entrySet()) {
+            Range<Double> span = kv.getValue().span();            
             funcToRange.add(new Pair(kv.getKey(),
-                                     kv.getValue().second - kv.getValue().first));
-            objectiveToDistribute -= kv.getValue().first; // o = o - min
+                                     span.upperEndpoint() - span.lowerEndpoint()));
+            objectiveToDistribute -= span.lowerEndpoint(); // o = o - min
         }
 
         // v (UGLY) Double -> double -> Double -> int
@@ -102,48 +153,41 @@ public class EnergyAwareness {
             objectiveToDistribute -= share;
             nbShares -= 1;
 
-            if (kv.first.equals(name)) {
-                results.put(kv.first, give + min());
-            } else {
-                results.put(kv.first, give + funcToMinMax.get(kv.first).first);
-            }
+            Range<Double> span = funcToInterval.get(name).span();           
+            results.put(kv.first, give + span.lowerEndpoint());
         }
         
         return results;
     }
 
+
+    public Double[] solveObjective(double objective) {
+        return null; // (TODO)
+    }
+    
     // (TODO) add read-only variables
     // default value is null, it should keep args as input
-    public Double[] solveObjective(double objective) {
-        if (objective < 0) return null; // objective unknown
-        // (TODO) sort xy to get logarithmic complexity
-        var min = Double.POSITIVE_INFINITY;
-        String args = null;
-        for (Map.Entry<String, Double> kv : xy.entrySet()) {
-            if (Math.abs(objective - kv.getValue()) < min) {
-                min = Math.abs(objective - kv.getValue());
-                args = kv.getKey();
-            }
-        }
+    // public Double[] solveObjective(double objective) {
+    //     if (objective < 0) return null; // objective unknown
+    //     // (TODO) sort xy to get logarithmic complexity
+    //     var min = Double.POSITIVE_INFINITY;
+    //     String args = null;
+    //     for (Map.Entry<String, Double> kv : xy.entrySet()) {
+    //         if (Math.abs(objective - kv.getValue()) < min) {
+    //             min = Math.abs(objective - kv.getValue());
+    //             args = kv.getKey();
+    //         }
+    //     }
 
-        var toParse = new JSONArray("["+ args+"]"); // (TODO) fix "[" "]" because it was not list
-        //        var toParse = new JSONArray(args);
-        Double[] xs = new Double[toParse.length()];
-        for (int i = 0; i < toParse.length(); ++i) {
-            xs[i] = toParse.getDouble(i);
-        }
+    //     var toParse = new JSONArray("["+ args+"]"); // (TODO) fix "[" "]" because it was not list
+    //     //        var toParse = new JSONArray(args);
+    //     Double[] xs = new Double[toParse.length()];
+    //     for (int i = 0; i < toParse.length(); ++i) {
+    //         xs[i] = toParse.getDouble(i);
+    //     }
         
-        return xs;
-    }
-
-
-
-    private double min() {
-        return xy.size() > 0 ? Collections.min(xy.values()) : 0;
-    }
-
-    private double max() {
-        return xy.size() > 0 ? Collections.max(xy.values()) : 0;
-    }
-
+    //     return xs;
+    // }
+    
 }
+

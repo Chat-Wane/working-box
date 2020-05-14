@@ -74,10 +74,11 @@ public class TestLocalEnergyData {
         }
 
         var intervals = led.getIntervals();
-        for (Pair<Double, Double> interval : intervals) {
-            System.out.print(String.format("[%s; %s[ ",
-                                           interval.first, interval.second));
-        }
+        // (TODO)
+        // for (Pair<Double, Double> interval : intervals) {
+        //     System.out.print(String.format("[%s; %s[ ",
+        //                                    interval.first, interval.second));
+        //}
         System.out.println();
     }
 }
