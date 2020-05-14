@@ -105,19 +105,33 @@ public class EnergyAwareness {
                                                     groupAsList.stream().mapToInt(i->i).toArray());
         
         var knapsack = new Knapsack(problem);
-        var solution = knapsack.solve();
+        var solution = knapsack.solve().solution;
 
-        // for (int i = 0; i < solution
-        
-        var funcToInterval = new TreeMap<String, RangeSet>();
+        var funcToInterval = new TreeMap<String, Range>();
+        for (int i = 0; i < solution.length; ++i) {
+            if (solution[i]) {
+                double value = weightAsList.get(i);
+                String func = groupToFunc.get(groupAsList.get(i));
+                RangeSet<Double> interval = funcToIntervals.get(func);
 
-        
+                double distance = Double.MAX_VALUE;
+                Range<Double> closestRange = null;
+                for (Range<Double> range : interval.asRanges()) {
+                    if (distance > Math.abs(range.lowerEndpoint() - value)) {
+                        distance = Math.abs(range.lowerEndpoint() - value);
+                        closestRange = range;
+                    }
+                }
+
+                funcToInterval.put(func, closestRange);
+            }
+        }
         
         return getObjectivesFromInterval(objective, funcToInterval);
     }
     
     public TreeMap<String, Double> getObjectivesFromInterval(double objective,
-                                                 TreeMap<String, RangeSet> funcToInterval) {
+                                                 TreeMap<String, Range> funcToInterval) {
         var results = new TreeMap<String, Double>();
         
         // default value -1.
@@ -131,8 +145,8 @@ public class EnergyAwareness {
         
         var objectiveToDistribute = objective;        
         var funcToRange = new ArrayList<Pair<String, Double>>();
-        for (Map.Entry<String, RangeSet> kv : funcToInterval.entrySet()) {
-            Range<Double> span = kv.getValue().span();            
+        for (Map.Entry<String, Range> kv : funcToInterval.entrySet()) {
+            Range<Double> span = kv.getValue();            
             funcToRange.add(new Pair(kv.getKey(),
                                      span.upperEndpoint() - span.lowerEndpoint()));
             objectiveToDistribute -= span.lowerEndpoint(); // o = o - min
@@ -153,7 +167,7 @@ public class EnergyAwareness {
             objectiveToDistribute -= share;
             nbShares -= 1;
 
-            Range<Double> span = funcToInterval.get(name).span();           
+            Range<Double> span = funcToInterval.get(name);
             results.put(kv.first, give + span.lowerEndpoint());
         }
         
