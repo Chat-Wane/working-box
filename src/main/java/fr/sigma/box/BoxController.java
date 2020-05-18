@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,25 +106,39 @@ public class BoxController {
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
 
         // (TODO) handle errors
-        var jsonEnergyAwareness = restTemplate.getForEntity(String.format("%s?name=handle@%s",
-                                                                          energy_call_url,
-                                                                          service_name),
-                                                            String.class).getBody();
+        var jsonEnergyAwareness = restTemplate
+            .getForEntity(String.format("%s?name=handle@%s",
+                                        energy_call_url,
+                                        service_name),
+                          String.class).getBody();
         energyAwareness = new EnergyAwareness(service_name);
         energyAwareness.update(jsonEnergyAwareness);
 
         argsFilter = new ArgsFilter();
-        argsFilter.setThreshold(4);
+        argsFilter.setThreshold(4); // (TODO) config
     }
 
-    // (TODO) disabled
-    @RequestMapping("/getLocalEnergyDataIntervals")
-    private ResponseEntity<String> getLocalEnergyDataIntervals() {
+    /**
+     * A "peer-to-peer" endpoint that provides energy knowledge, i.e.,
+     * intervals of energy consumption.
+     * @returns A JSON string containing pairs of doubles representing
+     * intervals.
+     */
+    @ConditionalOnExpression("${box.energy.peertopeer.enable:false}")
+    @RequestMapping("/getEnergyIntervals")
+    private ResponseEntity<String> getEnergyIntervals() {
         // return new ResponseEntity<String>( , HttpStatus.OK);
         // (TODO) to Json
         return null;
     }
-    
+
+    /**
+     * A simple loop that lasts depending on inputs and a priori
+     * configuration.
+     * @param args the input provided to the system.
+     * @param headers the header of the http request. Required to
+     * transfer execution context to other services.
+     */
     @RequestMapping("/*")
     private ResponseEntity<String> handle(Double[] args,
                                           @RequestHeader Map<String, String> headers) {
