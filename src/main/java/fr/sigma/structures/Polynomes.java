@@ -1,5 +1,4 @@
-package fr.sigma.box;
-
+package fr.sigma.structures;
 
 import java.util.ArrayList;
 

@@ -1,4 +1,4 @@
-package fr.sigma.box;
+package fr.sigma.energy;
 
 import java.util.Collections;
 import java.util.ArrayList;

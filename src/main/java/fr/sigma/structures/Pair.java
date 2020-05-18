@@ -1,6 +1,8 @@
-package fr.sigma.box;
+package fr.sigma.structures;
 
 import java.io.Serializable;
+
+
 
 public class Pair<T, L> implements Serializable {
 

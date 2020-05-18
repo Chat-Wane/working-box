@@ -1,4 +1,6 @@
-package fr.sigma.box;
+package fr.sigma.energy;
+
+import fr.sigma.structures.Pair;
 
 import java.util.Map;
 import java.util.TreeMap;

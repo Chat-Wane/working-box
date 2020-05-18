@@ -1,5 +1,11 @@
 package fr.sigma.box;
 
+import fr.sigma.energy.EnergyAwareness;
+import fr.sigma.energy.ArgsFilter;
+import fr.sigma.structures.Polynomes;
+import fr.sigma.structures.Polynome;
+import fr.sigma.structures.Pair;
+
 import io.opentracing.Tracer;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;

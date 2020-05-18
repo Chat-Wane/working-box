@@ -1,4 +1,4 @@
-package fr.sigma.box;
+package fr.sigma.structures;
 
 import org.junit.jupiter.api.Test;
 
