@@ -106,13 +106,14 @@ public class BoxController {
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
 
         // (TODO) handle errors
-        var jsonEnergyAwareness = restTemplate
-            .getForEntity(String.format("%s?name=handle@%s",
-                                        energy_call_url,
-                                        service_name),
-                          String.class).getBody();
-        energyAwareness = new EnergyAwareness(service_name);
-        energyAwareness.update(jsonEnergyAwareness);
+        // var jsonEnergyAwareness = restTemplate
+        //     .getForEntity(String.format("%s?name=handle@%s",
+        //                                 energy_call_url,
+        //                                 service_name),
+        //                   String.class).getBody();
+        energyAwareness = new EnergyAwareness(service_name, 10); // (TODO) configurable
+        energyAwareness.updateRemotes(address_time_list);
+        // energyAwareness.update(jsonEnergyAwareness);
 
         argsFilter = new ArgsFilter();
         argsFilter.setThreshold(4); // (TODO) config
@@ -138,13 +139,16 @@ public class BoxController {
      * @param args the input provided to the system.
      * @param headers the header of the http request. Required to
      * transfer execution context to other services.
+     * @returns A string ":)" that returns when the execution of this
+     * function is over.
      */
     @RequestMapping("/*")
     private ResponseEntity<String> handle(Double[] args,
                                           @RequestHeader Map<String, String> headers) {
         var start = LocalDateTime.now();
         var duration = Duration.between(start, LocalDateTime.now());
-        
+
+        // #A initialize objects and reporting
         if (Objects.isNull(polynomes)) { init(); } // lazy loading
 
         // report important parameters of this box
@@ -162,6 +166,9 @@ public class BoxController {
         var parametersString = String.format("[%s]", String.join(",", parameters));
         currentSpan.setTag(PARAMETERS, parametersString);
 
+
+
+        // #B Energy awareness handler, distribute objectives, modify parameters
         TreeMap<String, Double> objectives = null;
         if (headers.keySet().contains("objective")) {
             var objective = headers.get("objective");
@@ -179,7 +186,8 @@ public class BoxController {
         }
 
 
-        
+
+        // #C Main loop for different calls to remote services
         var polyResult = polynomes.get(args);
         var limit = polyResult > 0 ? Duration.ofMillis(polyResult) : Duration.ZERO;  
         logger.info(String.format("This box must run during %s and call %s other boxes",
@@ -192,38 +200,9 @@ public class BoxController {
                 (double) limit.toMillis() * 100.;
 
             while (i < address_time_list.size() &&
-                   progress > address_time_list.get(i).second) {
-                var url = String.format("%s", address_time_list.get(i).first);
-                Double[] finalArgs = args;
-                var finalObjectives = objectives;
-                CompletableFuture<String> future =
-                    CompletableFuture.supplyAsync(() -> {
-                            logger.info(String.format("Calling %s at %s percent.",
-                                                      url, (int) progress));
-
-                            var myheader = new HttpHeaders();
-                            for (var header : headers.keySet())
-                                if (header.contains("x-")) // propagate tracing headers
-                                    myheader.set(header, headers.get(header));
-                            myheader.set("x-b3-spanid", currentSpan.context().toSpanId());
-
-                            if (!Objects.isNull(finalObjectives)) {
-                                // (TODO) different name <-> url
-                                var port = url.split(":")[2];
-                                var name = String.format("handle@box-%s", port);
-                                myheader.set("objective", finalObjectives.get(name).toString());
-                            }
-
-                            var argsToSend = new LinkedMultiValueMap<String, String>();
-                            argsToSend.add("args",
-                                           Arrays.stream(finalArgs)
-                                           .map(String::valueOf)
-                                           .collect(Collectors.joining(",")));
-
-                            var request = new HttpEntity<MultiValueMap<String, String>>(argsToSend, myheader);
-
-                            return restTemplate.postForEntity(url, request, String.class, argsToSend).toString();}
-                            );
+                   progress > address_time_list.get(i).second) {                
+                callRemote(address_time_list.get(i).first, args, headers, objectives,
+                           currentSpan, (int) progress);
                 ++i;
             }
             
@@ -233,4 +212,44 @@ public class BoxController {
         return new ResponseEntity<String>(":)", HttpStatus.OK);
     }
 
+
+    /**
+     * Asynchronous call of a remote service. Headers are overloaded depending on
+     * service capabilities.
+     * @param url The url of the remote service.
+     * @param args The args passed to the application globally.
+     * @param headers The headers of the http call.
+     * @param objectives The energy objectives of calls to remote services.
+     */
+    private void callRemote(String url, Double[] args,  Map<String, String> headers,
+                            TreeMap<String, Double> objectives,
+                            Span currentSpan, int progress) {
+        
+        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+                logger.info(String.format("Calling %s at %s percent.",
+                                          url, progress));
+                
+                var myheader = new HttpHeaders();
+                for (var header : headers.keySet())
+                    if (header.contains("x-")) // propagate tracing headers
+                        myheader.set(header, headers.get(header));
+                myheader.set("x-b3-spanid", currentSpan.context().toSpanId());
+                if (!Objects.isNull(objectives)) {
+                    var port = url.split(":")[2]; // (TODO) different name <-> url
+                    var name = String.format("handle@box-%s", port);
+                    // (TODO) handle error when no name
+                    myheader.set("objective", objectives.get(name).toString());
+                }
+                var argsToSend = new LinkedMultiValueMap<String, String>();
+                argsToSend.add("args", Arrays.stream(args)
+                               .map(String::valueOf)
+                               .collect(Collectors.joining(",")));
+                var request = new HttpEntity<MultiValueMap<String, String>>(argsToSend,
+                                                                            myheader);
+
+                return restTemplate.postForEntity(url, request, String.class,
+                                                  argsToSend).toString();
+            });
+    }
+    
 }

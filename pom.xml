@@ -120,6 +120,7 @@
         <version>3.0.0-M4</version>
         <configuration>
           <useFile>false</useFile>
+          <trimStackTrace>false</trimStackTrace>
         </configuration>
       </plugin>
       

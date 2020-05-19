@@ -11,6 +11,7 @@ import java.util.Iterator;
 import org.json.*;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
+import com.google.common.collect.TreeRangeSet;
 import knapsack.Knapsack;
 import knapsack.model.OneOrNoneFromGroupProblem;
     
@@ -28,13 +29,25 @@ public class EnergyAwareness {
 
     private final String name;
     
-    public EnergyAwareness(String name) {
+    public EnergyAwareness(String name, int maxSizeOfLocalData) {
         funcToIntervals = new TreeMap();
-        localEnergyData = new LocalEnergyData();
-        localEnergyData.setMaxSize(10); // (TODO) configuration
-        
+        localEnergyData = new LocalEnergyData(maxSizeOfLocalData);
         this.name = name;
     }
+
+    public TreeMap<String, RangeSet<Double>> getFuncToIntervals() {
+        return funcToIntervals;
+    }
+
+    public LocalEnergyData getLocalEnergyData() {
+        return localEnergyData;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+
     
     public void update(String message) {
         // (TODO)
@@ -60,20 +73,76 @@ public class EnergyAwareness {
     //     }
     // }
 
+    public void updateRemotes(ArrayList<Pair<String, Integer>> address_time_list) {
+        for (var address_time : address_time_list) { // (TODO) change handle@+remote
+            var port = address_time.first.split(":")[2]; // (TODO) different name <-> url
+            var name = String.format("handle@box-%s", port);            
+            funcToIntervals.put(name, TreeRangeSet.create());
+        }
+    }
+
+    public void updateRemote(String func, RangeSet<Double> costs) {
+        // (TODO) could be important to handle version of data
+        funcToIntervals.put(func, costs);
+    }
+    
     /**
      * Combine local intervals with ones got from remote services to
      * create a new interval. It should be sent to parent service.
      */
-    public RangeSet combineIntervals() {
-        return null; // (TODO)
+    public RangeSet<Double> combineIntervals() {
+        var result = localEnergyData.getIntervals();
+        for (var interval : funcToIntervals.values())
+            result = _combination(result, interval);        
+        return result;
     }
 
-    public RangeSet _combination(RangeSet i1, RangeSet i2) {
-        return null; // (TODO)
+    public RangeSet<Double> getIntervals() { // alias of combine
+        return combineIntervals();
+    }
+
+    public RangeSet<Double> _combination(RangeSet<Double> i1, RangeSet<Double> i2) {
+        RangeSet<Double> result = TreeRangeSet.create();
+        // #A quick defaults
+        if (i1.isEmpty() && i2.isEmpty())
+            return result; // empty
+        if (i1.isEmpty()) {
+            result.addAll(i2);
+            return result;
+        }
+        if (i2.isEmpty()) {
+            result.addAll(i1);
+            return result;
+        }
+
+        // #B otherwise, all combinations
+        for (Range<Double> r1 : i1.asRanges()) {
+            for (Range<Double> r2 : i2.asRanges()) {
+                result.add(Range.closed(r1.lowerEndpoint() + r2.lowerEndpoint(),
+                                        r1.upperEndpoint() + r2.upperEndpoint()));
+            }
+        }
+        
+        return result;
     }
 
 
     public TreeMap<String, Double> getObjectives(double objective) {
+        // Check if has enough data to create objectives, otherwise, default
+        // values are returned.
+        boolean goDefault = localEnergyData.getIntervals().isEmpty();
+        for (var interval : funcToIntervals.values())
+            if (!goDefault && interval.isEmpty())
+                goDefault = true;
+        
+        if (goDefault) {
+            var results = new TreeMap<String, Double>();
+            results.put("handle@"+name, -1.); // (TODO) change this
+            for (var func : funcToIntervals.keySet())
+                results.put(func, -1.);
+            return results;
+        }
+        
         double ratio = objective/100.; // (TODO) configurable scaling
         var groupToFunc = new TreeMap<Integer, String>();
 
@@ -133,7 +202,7 @@ public class EnergyAwareness {
     }
     
     public TreeMap<String, Double> getObjectivesFromInterval(double objective,
-                                                 TreeMap<String, Range> funcToInterval) {
+                                                             TreeMap<String, Range> funcToInterval) {
         var results = new TreeMap<String, Double>();
         
         // default value -1.

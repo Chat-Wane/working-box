@@ -31,22 +31,36 @@ public class LocalEnergyData {
     private TreeMap<Double, String> costToInput;
 
     
-    public LocalEnergyData () {
+    public LocalEnergyData (int maxSize) {
         inputToCost = new TreeMap();
         costToInput = new TreeMap();
-    }
-
-    public void setMaxSize(int maxSize) {
-        // (TODO) reduce the size if to many data compared to new
-        // maxSize
         this.maxSize = maxSize;
     }
 
+    public int getMaxSize() {
+        return maxSize;
+    }
+
+    public int size() {
+        return inputToCost.size();
+    }
+    
     public double[] getCosts() {
         return inputToCost.values().stream().mapToDouble(e->e).sorted().toArray();
     }
 
+    // (TODO) cache results of kernel density
     public RangeSet<Double> getIntervals() {
+        // kernel needs at least 2 values
+        if (inputToCost.size() == 0)
+            return TreeRangeSet.create();
+        if (inputToCost.size() == 1) {
+            RangeSet<Double> oneValueResult = TreeRangeSet.create();
+            var cost = inputToCost.values().stream().findFirst().get();
+            oneValueResult.add(Range.closed(cost, cost));
+            return oneValueResult;
+        }
+        
         DoubleStream costAsStream = inputToCost.values().stream()
             .mapToDouble(e->e).sorted();
         double[] costAsDouble = costAsStream.toArray();
