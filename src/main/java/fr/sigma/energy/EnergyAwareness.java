@@ -101,7 +101,8 @@ public class EnergyAwareness {
         return combineIntervals();
     }
 
-    public RangeSet<Double> _combination(RangeSet<Double> i1, RangeSet<Double> i2) {
+    public static RangeSet<Double> _combination(RangeSet<Double> i1,
+                                                RangeSet<Double> i2) {
         RangeSet<Double> result = TreeRangeSet.create();
         // #A quick defaults
         if (i1.isEmpty() && i2.isEmpty())
@@ -115,17 +116,17 @@ public class EnergyAwareness {
             return result;
         }
 
-        // #B otherwise, all combinations
+        // #B otherwise, all combinations       
+        // /!\ may be expensive without range factorization, i.e., it
+        // has a quadratic complexity
         for (Range<Double> r1 : i1.asRanges()) {
             for (Range<Double> r2 : i2.asRanges()) {
                 result.add(Range.closed(r1.lowerEndpoint() + r2.lowerEndpoint(),
                                         r1.upperEndpoint() + r2.upperEndpoint()));
             }
-        }
-        
+        }   
         return result;
     }
-
 
     public TreeMap<String, Double> getObjectives(double objective) {
         // Check if has enough data to create objectives, otherwise, default
@@ -200,17 +201,20 @@ public class EnergyAwareness {
         
         return getObjectivesFromInterval(objective, funcToInterval);
     }
-    
-    public TreeMap<String, Double> getObjectivesFromInterval(double objective,
-                                                             TreeMap<String, Range> funcToInterval) {
+
+    /**
+     * Gives minimal energy to everyone then distributes equally among 
+     * services.
+     */ 
+    public static TreeMap<String, Double> getObjectivesFromInterval
+        (double objective,
+         TreeMap<String, Range> funcToInterval) {        
         var results = new TreeMap<String, Double>();
         
-        // default value -1.
+        // default value -1 for everyone.
         if (objective < 0) {
-            results.put(name, -1.);
-            for (String remote : funcToInterval.keySet()) {
-                results.put(remote, -1.);
-            }
+            for (var service  : funcToInterval.keySet())
+                results.put(service, -1.);
             return results;
         }
         
@@ -238,7 +242,7 @@ public class EnergyAwareness {
             objectiveToDistribute -= share;
             nbShares -= 1;
 
-            Range<Double> span = funcToInterval.get(name);
+            Range<Double> span = funcToInterval.get(kv.first);
             results.put(kv.first, give + span.lowerEndpoint());
         }
         

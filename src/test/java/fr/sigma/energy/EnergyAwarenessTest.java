@@ -1,5 +1,7 @@
 package fr.sigma.energy;
 
+import java.util.TreeMap;
+
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
@@ -18,6 +20,8 @@ public class EnergyAwarenessTest {
         assertEquals("meow", ea.getName());
     }
 
+
+    
     @Test
     public void testSimple_combination () {
         var ea = new EnergyAwareness("meow", 10);
@@ -31,6 +35,7 @@ public class EnergyAwarenessTest {
         assert(r1.enclosesAll(ea._combination(r2,r1)));
     }
 
+    @Test
     public void test_combination () {
         var ea = new EnergyAwareness("meow", 10);
         RangeSet<Double> r1 = TreeRangeSet.create();
@@ -44,6 +49,7 @@ public class EnergyAwarenessTest {
         assert(expected.enclosesAll(result));
     }
 
+    @Test
     public void test_combination_with_factorize () {
         var ea = new EnergyAwareness("meow", 10);
         RangeSet<Double> r1 = TreeRangeSet.create();
@@ -58,6 +64,7 @@ public class EnergyAwarenessTest {
         assert(expected.enclosesAll(result));
     }
 
+    @Test
     public void test_combination_without_factorize () {
         var ea = new EnergyAwareness("meow", 10);
         RangeSet<Double> r1 = TreeRangeSet.create();
@@ -73,6 +80,8 @@ public class EnergyAwarenessTest {
         assert(expected.enclosesAll(result));
     }
 
+
+    
     @Test
     public void testCombineIntervalsOfNothing () {
         var ea = new EnergyAwareness("meow", 10);
@@ -96,6 +105,43 @@ public class EnergyAwarenessTest {
         assert(expected.enclosesAll(ea2.getIntervals()));
         assert(ea2.getIntervals().enclosesAll(expected));        
     }
+
+
+
+    @Test
+    public void objectivesAllAlone () {
+        var ea = new EnergyAwareness("meow", 10);
+        // doing with remote only because easier to manipulate
+        // compared to kernel density calls        
+        var remoteRange = new TreeMap<String, Range>();
+        remoteRange.put("woof", Range.closed(13., 16.));
+        var result = ea.getObjectivesFromInterval(14.,remoteRange);
+        assertEquals(14., (double) result.get("woof"));
+    }
+
+    @Test
+    public void objectivesMultipleServices () {
+        var ea = new EnergyAwareness("meow", 10);
+        var remoteRange = new TreeMap<String, Range>();
+        remoteRange.put("woof", Range.closed(13., 16.));
+        remoteRange.put("waf", Range.closed(14., 16.));
+        var result = ea.getObjectivesFromInterval(28., remoteRange);
+        assertEquals(13.5, (double) result.get("woof"));
+        assertEquals(14.5, (double) result.get("waf"));
+    }
+
+    @Test
+    public void objectivesMultipleServicesWithSurplus () {
+        var ea = new EnergyAwareness("meow", 10);
+        var remoteRange = new TreeMap<String, Range>();
+        remoteRange.put("woof", Range.closed(12., 12.5));
+        remoteRange.put("waf", Range.closed(14., 16.));
+        var result = ea.getObjectivesFromInterval(28.,remoteRange);
+        assertEquals(12.5, (double) result.get("woof"));
+        assertEquals(15.5, (double) result.get("waf"));
+    }
+
+
 
     
 }
