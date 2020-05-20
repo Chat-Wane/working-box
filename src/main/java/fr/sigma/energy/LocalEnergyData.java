@@ -108,7 +108,7 @@ public class LocalEnergyData {
 
 
     
-    public void addEnergyData (ArrayList<Double> args, Double cost) {
+    public void addEnergyData (ArrayList<Double> args, double cost) {
         // (TODO) cache intermediate results
         // (TODO) improve time complexity
 
@@ -178,7 +178,7 @@ public class LocalEnergyData {
 
         sample = new ArrayList<Double>();
         minCost = cost < minCost ? cost : minCost;
-        maxCost = cost > maxCost ? cost: maxCost;
+        maxCost = cost > maxCost ? cost : maxCost;
         for (int i=0; i<sampleSize; ++i) {
             sample.add(kernelChanged.p(minCost + (maxCost - minCost)/sampleSize * i));
         }

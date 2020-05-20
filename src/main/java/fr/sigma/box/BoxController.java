@@ -95,6 +95,7 @@ public class BoxController {
         }
         
         address_time_list = new ArrayList<>();
+        var names = new ArrayList<String>();
         for (int i = 0; i < remote_calls.size(); ++i) {
             // format <address to call>@<percent before calling>
             String[] address_time = remote_calls.get(i).split("@");
@@ -102,6 +103,7 @@ public class BoxController {
             var atProgress = Integer.parseInt(address_time[1]);
             assert (atProgress >= 0) && (atProgress <= 100);
             address_time_list.add(new Pair(address_time[0], atProgress));
+            names.add(address_time[0]); // (TODO) include name of function
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
 
@@ -112,7 +114,7 @@ public class BoxController {
         //                                 service_name),
         //                   String.class).getBody();
         energyAwareness = new EnergyAwareness(service_name, 10); // (TODO) configurable
-        energyAwareness.updateRemotes(address_time_list);
+        energyAwareness.updateRemotes(names);
         // energyAwareness.update(jsonEnergyAwareness);
 
         argsFilter = new ArgsFilter();

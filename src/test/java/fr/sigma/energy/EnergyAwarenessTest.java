@@ -1,6 +1,7 @@
 package fr.sigma.energy;
 
 import java.util.TreeMap;
+import java.util.ArrayList;
 
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
@@ -143,5 +144,68 @@ public class EnergyAwarenessTest {
 
 
 
+    @Test
+    public void objectivesWithMissingOrNoDataGoesDefault () {
+        var ea = new EnergyAwareness("meow", 10);
+        RangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
+        remoteRangeSet1.add(Range.closed(12., 12.5));
+        ea.updateRemote("woof", remoteRangeSet1);
+        var objectives = ea.getObjectives(28);
+        // miss local
+        assertEquals(-1., (double) objectives.get("woof"));
+        assertEquals(-1., (double) objectives.get("meow"));
+
+        // all seems good
+        ea.addEnergyData(new ArrayList<Double>(), 0.);
+        objectives = ea.getObjectives(28);
+        assertEquals(0., (double) objectives.get("meow"));
+        assertEquals(12.5, (double) objectives.get("woof"));
+        
+        // miss new remote
+        ea.updateRemote("waf", TreeRangeSet.create());
+        objectives = ea.getObjectives(28);
+        assertEquals(-1., (double) objectives.get("meow"));
+        assertEquals(-1., (double) objectives.get("woof"));
+        assertEquals(-1., (double) objectives.get("waf"));        
+    }
+    
+    @Test
+    public void objectivesWithRangeSetWithOneRangeAndSurplus () {
+        var ea = new EnergyAwareness("meow", 10);
+        ea.addEnergyData(new ArrayList<Double>(), 0.);
+        
+        RangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
+        remoteRangeSet1.add(Range.closed(12., 12.5));
+        ea.updateRemote("woof", remoteRangeSet1);
+        RangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
+        remoteRangeSet2.add(Range.closed(14., 16.));
+        ea.updateRemote("waf", remoteRangeSet2);
+        
+        var objectives = ea.getObjectives(28);
+        assertEquals(12.5, (double) objectives.get("woof"));
+        assertEquals(15.5, (double) objectives.get("waf"));
+    }
+
+    @Test
+    public void objectiveWithRangeSetMultipleChoices () {
+        var ea = new EnergyAwareness("meow", 10);
+        ea.addEnergyData(new ArrayList<Double>(), 0.);
+
+        RangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
+        remoteRangeSet1.add(Range.closed(10., 20.));
+        remoteRangeSet1.add(Range.closed(25., 40.));
+        ea.updateRemote("woof", remoteRangeSet1);
+        RangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
+        remoteRangeSet2.add(Range.closed(40., 60.));
+        remoteRangeSet2.add(Range.closed(80., 110.));       
+        ea.updateRemote("waf", remoteRangeSet2);
+        
+        var objectives = ea.getObjectives(100.);
+        System.out.println((double) objectives.get("woof"));
+        System.out.println((double) objectives.get("waf"));
+        
+        // assertEquals(12.5, (double) objectives.get("woof"));
+        // assertEquals(15.5, (double) objectives.get("waf"));        
+    }
     
 }

@@ -2,6 +2,7 @@ package fr.sigma.energy;
 
 import fr.sigma.structures.Pair;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.Collections;
@@ -73,12 +74,13 @@ public class EnergyAwareness {
     //     }
     // }
 
-    public void updateRemotes(ArrayList<Pair<String, Integer>> address_time_list) {
-        for (var address_time : address_time_list) { // (TODO) change handle@+remote
-            var port = address_time.first.split(":")[2]; // (TODO) different name <-> url
-            var name = String.format("handle@box-%s", port);            
+    public void addEnergyData(ArrayList<Double> args, double cost) {
+        localEnergyData.addEnergyData(args, cost);
+    }
+
+    public void updateRemotes(ArrayList<String> names) {
+        for (var func : names)
             funcToIntervals.put(name, TreeRangeSet.create());
-        }
     }
 
     public void updateRemote(String func, RangeSet<Double> costs) {
@@ -138,13 +140,13 @@ public class EnergyAwareness {
         
         if (goDefault) {
             var results = new TreeMap<String, Double>();
-            results.put("handle@"+name, -1.); // (TODO) change this
+            results.put(name, -1.);
             for (var func : funcToIntervals.keySet())
                 results.put(func, -1.);
             return results;
         }
         
-        double ratio = objective/100.; // (TODO) configurable scaling
+        double ratio = 1000. / objective; // (TODO) configurable scaling
         var groupToFunc = new TreeMap<Integer, String>();
 
         var weightAsList = new ArrayList<Integer>();
@@ -154,8 +156,10 @@ public class EnergyAwareness {
         weightAsList.add(0); // placeholders
         profitAsList.add(1);
         groupAsList.add(-1);
-        
-        for (Range<Double> interval :  localEnergyData.getIntervals().asRanges()) {
+
+        var localIntervals = localEnergyData.getIntervals();
+        groupToFunc.put(0, name);
+        for (Range<Double> interval : localIntervals.asRanges()) {
             weightAsList.add((int)(interval.lowerEndpoint() * ratio));
             profitAsList.add(1);
             groupAsList.add(0);
@@ -168,24 +172,34 @@ public class EnergyAwareness {
                 profitAsList.add(1);
                 groupAsList.add(groupIndex);
             }
+            groupToFunc.put(groupIndex, kv.getKey());
             groupIndex += 1;
         }
 
-        var problem = new OneOrNoneFromGroupProblem(100,
-                                                    profitAsList.stream().mapToInt(i->i).toArray(),
-                                                    weightAsList.stream().mapToInt(i->i).toArray(),
-                                                    groupAsList.stream().mapToInt(i->i).toArray());
+        System.out.println(Arrays.toString(profitAsList.toArray()));
+        System.out.println(Arrays.toString(weightAsList.toArray()));
+        System.out.println(Arrays.toString(groupAsList.toArray()));
+
+        
+        var problem = new OneOrNoneFromGroupProblem
+            (1000,
+             profitAsList.stream().mapToInt(i->i).toArray(),
+             weightAsList.stream().mapToInt(i->i).toArray(),
+             groupAsList.stream().mapToInt(i->i).toArray());
         
         var knapsack = new Knapsack(problem);
         var solution = knapsack.solve().solution;
 
         var funcToInterval = new TreeMap<String, Range>();
+        System.out.println("=======");
+        System.out.println(Arrays.toString(solution));
         for (int i = 0; i < solution.length; ++i) {
             if (solution[i]) {
-                double value = weightAsList.get(i);
+                double value = weightAsList.get(i) / ratio;
                 String func = groupToFunc.get(groupAsList.get(i));
-                RangeSet<Double> interval = funcToIntervals.get(func);
-
+                RangeSet<Double> interval = (func.equals(name)) ?
+                    localIntervals : funcToIntervals.get(func);
+                
                 double distance = Double.MAX_VALUE;
                 Range<Double> closestRange = null;
                 for (Range<Double> range : interval.asRanges()) {
@@ -194,7 +208,7 @@ public class EnergyAwareness {
                         closestRange = range;
                     }
                 }
-
+                
                 funcToInterval.put(func, closestRange);
             }
         }
