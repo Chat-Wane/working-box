@@ -20,5 +20,18 @@ public class MCKPElement {
     public static MCKPElement PLACEHOLDER () {
         return new MCKPElement (0, 0, -1);
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        
+        MCKPElement e = (MCKPElement) o;
+        return profit == e.profit &&
+            weight == e.weight &&
+            group == e.group;
+    }
     
 }

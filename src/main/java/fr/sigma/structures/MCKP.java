@@ -21,10 +21,13 @@ public class MCKP {
 
     
     public MCKP (int maxObjective, ArrayList<MCKPElement> elements) {
+        // (TODO) /!\ check that elements are sorted by group and by
+        // ascending weight/profit
         this.maxObjective = maxObjective;
         this.elements = elements;
         this.elements.add(0, MCKPElement.PLACEHOLDER()); // convenience
         m = new ArrayList();
+        iGroup = new ArrayList();
     }
 
     public void addElement (MCKPElement element) {
@@ -33,13 +36,30 @@ public class MCKP {
         // * current_ratio is lower than this element.
     }
 
+    public int getMaxObjective () {
+        return maxObjective;
+    }
+
+    public ArrayList<ArrayList<Integer>> getMatrix () {
+        return m;
+    }
+
+    public ArrayList<Integer> getIGroup () {
+        return iGroup;
+    }
+
+    public ArrayList<MCKPElement> getElements () {
+        return elements;
+    }
+        
 
 
-    public ArrayList<MCKPElement> solve(double objective) {
-        // (TODO) normalize objective
+    public ArrayList<MCKPElement> solve(double objective) {        
+        // (TODO) normalize objective with intervals
+        // (TODO) if objective > maxObjective, process missing data
         if (m.isEmpty())
             process();
-        var listOfIndices = backtrack((int) objective); // (TODO) norm
+        var listOfIndices = backtrack((int) objective);
         return listOfIndices.stream().map(i->elements.get(i))
             .collect(Collectors.toCollection(ArrayList::new));
     }
@@ -87,22 +107,28 @@ public class MCKP {
      * in the list of elements of this solver.
      */
     public ArrayList<Integer> backtrack(int objective) {
+        if (elements.size()<=1)
+            return new ArrayList(); // default empty
+        
         var indexOfValidItems = new ArrayList<Integer>();
 
+        // start at the proper row column in the matrix
         int y = m.size() - 1;
-        int x = objective;
+        int x = objective;        
 
-        int iCurrentGroup = iGroup.get(iGroup.size() - 1);
+        int iCurrentGroup = iGroup.size();
 
         while (y > 0) {
-            while (x>0 && m.get(y).get(x) == m.get(y).get(x-1))
+            while (x > 0 &&
+                   m.get(y).get(x).equals(m.get(y).get(x-1)))
                 --x; // go left
-            while (y>0 &&
-                   m.get(y).get(x) == m.get(y-1).get(x) &&
+            while (y > 0 &&
+                   m.get(y).get(x).equals(m.get(y-1).get(x)) &&
                    y > iGroup.get(iCurrentGroup - 1))
                 --y; // go up
-            if (y == iGroup.get(iCurrentGroup - 1))
+            if (y == iGroup.get(iCurrentGroup - 1)) {
                 ++y; // went one to many
+            }
 
             indexOfValidItems.add(y);
             x = x - elements.get(y).weight;
