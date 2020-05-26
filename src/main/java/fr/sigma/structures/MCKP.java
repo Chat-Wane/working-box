@@ -68,35 +68,47 @@ public class MCKP {
      * Fill the matrix of size ~maxObjective*nbElements. 
      */    
     public void process() {
-        int iPreviousGroup = 0;
+        int iPreviousGroup = -1;
         int previousGroup = elements.get(0).group;
         int currentGroup = elements.get(0).group;
         
         for (int i = 0; i < elements.size(); ++i) {
             m.add(new ArrayList());
-            m.get(i).add(0); // first column full of 0
+            m.get(i).add(-1); // first column full of 0
         }
 
+        m.get(0).set(0, 0);
         for (int w = 0; w < maxObjective; ++w)
             m.get(0).add(0); // first row full of 0
-
+        
+        int minWeight = 0; // remove invalid possibility
+        
         // process the matrix
         for (int i = 1; i < elements.size(); ++i) {
             var e = elements.get(i);
             
-            if (e.group != previousGroup) {
+            boolean newGroup = e.group != previousGroup;            
+            if (newGroup) {
+                minWeight += e.weight;
                 previousGroup = e.group;
                 iPreviousGroup = i-1;
                 iGroup.add(iPreviousGroup);
             }
-
+            
             for (int w = 1; w <= maxObjective; ++w) {
-                int option1 = w < e.weight ? 0 :
-                    m.get(iPreviousGroup).get(w - e.weight) + e.profit; // diag
-                int option2 = m.get(i-1).get(w); // above
-                m.get(i).add(Math.max(option1, option2));
+                if (w < minWeight) 
+                    m.get(i).add(-1);
+                else  {
+                    int diag = (w < e.weight) ?
+                        -1 : m.get(iPreviousGroup).get(w - e.weight);
+                    int option1 = (diag < 0) ?
+                        -1 : diag + e.profit ; // diag
+                    int option2 = newGroup ?
+                        -1 : m.get(i-1).get(w); // above
+                    m.get(i).add(Math.max(option1, option2));
+                }
             }
-        }        
+        }    
     }
 
     /**
@@ -131,7 +143,7 @@ public class MCKP {
             }
 
             indexOfValidItems.add(y);
-            x = x - elements.get(y).weight;
+            x -= elements.get(y).weight;
             y = iGroup.get(iCurrentGroup - 1);
             --iCurrentGroup;
         }

@@ -29,11 +29,13 @@ public class MCKPTest {
                                                           new MCKPElement(2,2,1),
                                                           new MCKPElement(3,3,1))));
         mckp.process();
-        assertEquals(new ArrayList<Integer>(Arrays.asList(0, 1, 1, 1, 1)),
+        assertEquals(new ArrayList<Integer>(Arrays.asList(0, 0, 0, 0, 0)),
+                     mckp.getMatrix().get(0));
+        assertEquals(new ArrayList<Integer>(Arrays.asList(-1, 1, 1, 1, 1)),
                      mckp.getMatrix().get(1));
-        assertEquals(new ArrayList<Integer>(Arrays.asList(0, 1, 2, 2, 2)),
+        assertEquals(new ArrayList<Integer>(Arrays.asList(-1, 1, 2, 2, 2)),
                      mckp.getMatrix().get(2));
-        assertEquals(new ArrayList<Integer>(Arrays.asList(0, 1, 2, 3, 3)),
+        assertEquals(new ArrayList<Integer>(Arrays.asList(-1, 1, 2, 3, 3)),
                      mckp.getMatrix().get(3));
     }
 
@@ -95,5 +97,19 @@ public class MCKPTest {
         assertEquals(new MCKPElement(1,1,2), s3.get(1));
         assertEquals(new MCKPElement(1,1,1), s3.get(2));
     }
-    
+
+    @Test
+    public void solutionOfThingThatDoesNotWorkAsExpected () {
+        var mckp = new MCKP(100,
+                            new ArrayList<>(Arrays.asList(new MCKPElement(0,0,0),
+                                                          new MCKPElement(47,47,1),
+                                                          new MCKPElement(94,94,1),
+                                                          new MCKPElement(11,11,2),
+                                                          new MCKPElement(29,29,2))));
+        var s = mckp.solve(100);
+        assertEquals(3, s.size());
+        assertEquals(new MCKPElement(29,29,2), s.get(0));
+        assertEquals(new MCKPElement(47,47,1), s.get(1));
+        assertEquals(new MCKPElement(0,0,0), s.get(2));        
+    }
 }

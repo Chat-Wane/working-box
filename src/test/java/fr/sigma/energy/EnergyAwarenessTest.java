@@ -201,11 +201,11 @@ public class EnergyAwarenessTest {
         ea.updateRemote("waf", remoteRangeSet2);
         
         var objectives = ea.getObjectives(100.);
-        System.out.println((double) objectives.get("woof"));
-        System.out.println((double) objectives.get("waf"));
-        
-        // assertEquals(12.5, (double) objectives.get("woof"));
-        // assertEquals(15.5, (double) objectives.get("waf"));        
+        assertEquals(15, (double) objectives.get("woof")); // 10+5
+        assertEquals(85, (double) objectives.get("waf")); // 80+5
+        var objectives2 = ea.getObjectives(85.);
+        // assertEquals(35, (double) objectives2.get("woof")); // 25+10
+        // assertEquals(50, (double) objectives2.get("waf")); // 40+10
     }
     
 }

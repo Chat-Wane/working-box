@@ -33,5 +33,9 @@ public class MCKPElement {
             weight == e.weight &&
             group == e.group;
     }
-    
+
+    @Override
+    public String toString() {
+        return String.format("(p=%s, w=%s, g=%s)", profit, weight, group);
+    }
 }

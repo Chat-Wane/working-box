@@ -1,6 +1,8 @@
 package fr.sigma.energy;
 
 import fr.sigma.structures.Pair;
+import fr.sigma.structures.MCKP;
+import fr.sigma.structures.MCKPElement;
 
 import java.util.Arrays;
 import java.util.Map;
@@ -13,8 +15,6 @@ import org.json.*;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
-import knapsack.Knapsack;
-import knapsack.model.OneOrNoneFromGroupProblem;
     
 
 
@@ -149,68 +149,47 @@ public class EnergyAwareness {
         double ratio = 1000. / objective; // (TODO) configurable scaling
         var groupToFunc = new TreeMap<Integer, String>();
 
-        var weightAsList = new ArrayList<Integer>();
-        var profitAsList = new ArrayList<Integer>();
-        var groupAsList = new ArrayList<Integer>();
-
-        weightAsList.add(0); // placeholders
-        profitAsList.add(1);
-        groupAsList.add(-1);
+        var mckpElements = new ArrayList<MCKPElement>();
 
         var localIntervals = localEnergyData.getIntervals();
         groupToFunc.put(0, name);
-        for (Range<Double> interval : localIntervals.asRanges()) {
-            weightAsList.add((int)(interval.lowerEndpoint() * ratio));
-            profitAsList.add(1);
-            groupAsList.add(0);
-        }
-
-        int groupIndex = 1;
+        int groupIndex = 0;
+        for (Range<Double> interval : localIntervals.asRanges())
+            mckpElements.add(new MCKPElement((int)(interval.lowerEndpoint()*ratio),
+                                             (int)(interval.lowerEndpoint()*ratio),
+                                             groupIndex));
+        
+        ++groupIndex;
+        
         for (Map.Entry<String, RangeSet<Double>> kv : funcToIntervals.entrySet()) {
-            for (var intervals : kv.getValue().asRanges()) {
-                weightAsList.add((int)(intervals.lowerEndpoint() * ratio));
-                profitAsList.add(1);
-                groupAsList.add(groupIndex);
-            }
+            for (var intervals : kv.getValue().asRanges())
+                mckpElements.add(new MCKPElement((int)(intervals.lowerEndpoint()*ratio),
+                                                 (int)(intervals.lowerEndpoint()*ratio),
+                                                 groupIndex));
             groupToFunc.put(groupIndex, kv.getKey());
-            groupIndex += 1;
+            ++groupIndex;
         }
 
-        System.out.println(Arrays.toString(profitAsList.toArray()));
-        System.out.println(Arrays.toString(weightAsList.toArray()));
-        System.out.println(Arrays.toString(groupAsList.toArray()));
-
-        
-        var problem = new OneOrNoneFromGroupProblem
-            (1000,
-             profitAsList.stream().mapToInt(i->i).toArray(),
-             weightAsList.stream().mapToInt(i->i).toArray(),
-             groupAsList.stream().mapToInt(i->i).toArray());
-        
-        var knapsack = new Knapsack(problem);
-        var solution = knapsack.solve().solution;
+        var mckp = new MCKP(1000, mckpElements); // (TODO) cache mckp
+        var solution = mckp.solve(1000);
 
         var funcToInterval = new TreeMap<String, Range>();
-        System.out.println("=======");
-        System.out.println(Arrays.toString(solution));
-        for (int i = 0; i < solution.length; ++i) {
-            if (solution[i]) {
-                double value = weightAsList.get(i) / ratio;
-                String func = groupToFunc.get(groupAsList.get(i));
-                RangeSet<Double> interval = (func.equals(name)) ?
-                    localIntervals : funcToIntervals.get(func);
+        for (int i = 0; i < solution.size(); ++i) {            
+            double value = solution.get(i).weight / ratio;
+            String func = groupToFunc.get(solution.get(i).group);
+            RangeSet<Double> interval = (func.equals(name)) ?
+                localIntervals : funcToIntervals.get(func);
                 
-                double distance = Double.MAX_VALUE;
-                Range<Double> closestRange = null;
-                for (Range<Double> range : interval.asRanges()) {
-                    if (distance > Math.abs(range.lowerEndpoint() - value)) {
-                        distance = Math.abs(range.lowerEndpoint() - value);
-                        closestRange = range;
-                    }
+            double distance = Double.MAX_VALUE;
+            Range<Double> closestRange = null;
+            for (Range<Double> range : interval.asRanges()) {
+                if (distance > Math.abs(range.lowerEndpoint() - value)) {
+                    distance = Math.abs(range.lowerEndpoint() - value);
+                    closestRange = range;
                 }
-                
-                funcToInterval.put(func, closestRange);
             }
+            
+            funcToInterval.put(func, closestRange);
         }
         
         return getObjectivesFromInterval(objective, funcToInterval);
