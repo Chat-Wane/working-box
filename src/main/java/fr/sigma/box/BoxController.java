@@ -6,6 +6,9 @@ import fr.sigma.structures.Polynomes;
 import fr.sigma.structures.Polynome;
 import fr.sigma.structures.Pair;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import io.opentracing.Tracer;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -38,6 +41,9 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.time.DurationFormatUtils;
+
+import com.google.common.collect.TreeRangeSet;
+import com.google.common.collect.Range;
 
 
 
@@ -130,9 +136,11 @@ public class BoxController {
     @ConditionalOnExpression("${box.energy.peertopeer.enable:false}")
     @RequestMapping("/getEnergyIntervals")
     private ResponseEntity<String> getEnergyIntervals() {
-        // return new ResponseEntity<String>( , HttpStatus.OK);
-        // (TODO) to Json
-        return null;
+        if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unugly
+        
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String json = gson.toJson(energyAwareness.combineIntervals());        
+        return new ResponseEntity<String>(json, HttpStatus.OK);
     }
 
     /**
@@ -210,7 +218,8 @@ public class BoxController {
             
             duration = Duration.between(start, LocalDateTime.now());
         }
-        
+
+        updateEnergy(args, start, LocalDateTime.now());
         return new ResponseEntity<String>(":)", HttpStatus.OK);
     }
 
@@ -253,5 +262,35 @@ public class BoxController {
                                                   argsToSend).toString();
             });
     }
-    
+
+
+
+
+    // (TODO) from span
+    private void updateEnergy (Double[] args, LocalDateTime from, LocalDateTime to) {
+        // (TODO) call energy stuff, for now, cost is only about duration
+        energyAwareness.addEnergyData(new ArrayList<Double>(Arrays.asList(args)),
+                                      (double) Duration.between(from, to).toMillis());
+
+        for (var address_time : address_time_list) { // (TODO) how often ? 
+            try {
+                var jsonRangeSet = restTemplate
+                    .getForEntity(String.format("%s/getEnergyIntervals",
+                                                address_time.first),
+                                  String.class).getBody();
+                System.out.println(jsonRangeSet);
+                Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                gson.registerTypeAdapter(Range.class, new GoogleRangeAdapter());
+                TreeRangeSet<Double> meow = TreeRangeSet.create();
+                TreeRangeSet<Double> costs =  gson.fromJson(jsonRangeSet,
+                                                            meow.getClass());
+                energyAwareness.updateRemote(address_time.first,
+                                             costs);
+            } catch (Exception e) {
+                logger.warn("Call to get remote energy consumption failed.");
+                System.out.println(e);
+                // (TODO) can fall down to remote dedicated service.
+            }
+        }
+    }
 }

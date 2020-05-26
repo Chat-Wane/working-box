@@ -26,8 +26,8 @@ public class EnergyAwarenessTest {
     @Test
     public void testSimple_combination () {
         var ea = new EnergyAwareness("meow", 10);
-        RangeSet<Double> r1 = TreeRangeSet.create();
-        RangeSet<Double> r2 = TreeRangeSet.create();
+        TreeRangeSet<Double> r1 = TreeRangeSet.create();
+        TreeRangeSet<Double> r2 = TreeRangeSet.create();
         assert(ea._combination(r1,r2).isEmpty());
         r1.add(Range.closed(1.,2.));
         assert(ea._combination(r1,r2).enclosesAll(r1));
@@ -39,11 +39,11 @@ public class EnergyAwarenessTest {
     @Test
     public void test_combination () {
         var ea = new EnergyAwareness("meow", 10);
-        RangeSet<Double> r1 = TreeRangeSet.create();
-        RangeSet<Double> r2 = TreeRangeSet.create();
+        TreeRangeSet<Double> r1 = TreeRangeSet.create();
+        TreeRangeSet<Double> r2 = TreeRangeSet.create();
         r1.add(Range.closed(1.,2.));
         r2.add(Range.closed(3.,10.));
-        RangeSet<Double> expected = TreeRangeSet.create();
+        TreeRangeSet<Double> expected = TreeRangeSet.create();
         expected.add(Range.closed(4., 12.));
         var result = ea._combination(r1, r2);
         assert(result.enclosesAll(expected));
@@ -53,12 +53,12 @@ public class EnergyAwarenessTest {
     @Test
     public void test_combination_with_factorize () {
         var ea = new EnergyAwareness("meow", 10);
-        RangeSet<Double> r1 = TreeRangeSet.create();
-        RangeSet<Double> r2 = TreeRangeSet.create();
+        TreeRangeSet<Double> r1 = TreeRangeSet.create();
+        TreeRangeSet<Double> r2 = TreeRangeSet.create();
         r1.add(Range.closed(1.,2.));
         r1.add(Range.closed(5.,6.));
         r2.add(Range.closed(3.,10.));
-        RangeSet<Double> expected = TreeRangeSet.create();
+        TreeRangeSet<Double> expected = TreeRangeSet.create();
         expected.add(Range.closed(4., 16.));
         var result = ea._combination(r1, r2);
         assert(result.enclosesAll(expected));
@@ -68,12 +68,12 @@ public class EnergyAwarenessTest {
     @Test
     public void test_combination_without_factorize () {
         var ea = new EnergyAwareness("meow", 10);
-        RangeSet<Double> r1 = TreeRangeSet.create();
-        RangeSet<Double> r2 = TreeRangeSet.create();
+        TreeRangeSet<Double> r1 = TreeRangeSet.create();
+        TreeRangeSet<Double> r2 = TreeRangeSet.create();
         r1.add(Range.closed(1.,2.));
         r1.add(Range.closed(12.,13.));
         r2.add(Range.closed(3.,10.));
-        RangeSet<Double> expected = TreeRangeSet.create();
+        TreeRangeSet<Double> expected = TreeRangeSet.create();
         expected.add(Range.closed(4., 12.));
         expected.add(Range.closed(15., 23.));
         var result = ea._combination(r1, r2);
@@ -92,7 +92,7 @@ public class EnergyAwarenessTest {
     @Test
     public void testCombineIntervalsWithLocalAndRemoteIntervals () {
         var ea = new EnergyAwareness("meow", 10);
-        RangeSet<Double> remoteCosts = TreeRangeSet.create();
+        TreeRangeSet<Double> remoteCosts = TreeRangeSet.create();
         remoteCosts.add(Range.closed(13., 16.));
         ea.updateRemote("woof", remoteCosts);
         var toSend = ea.getIntervals();
@@ -101,7 +101,7 @@ public class EnergyAwarenessTest {
         var ea2 = new EnergyAwareness("anotherService", 10);
         ea2.updateRemote("waf", remoteCosts);
         ea2.updateRemote("meow", toSend);
-        RangeSet<Double> expected = TreeRangeSet.create();
+        TreeRangeSet<Double> expected = TreeRangeSet.create();
         expected.add(Range.closed(26., 32.));
         assert(expected.enclosesAll(ea2.getIntervals()));
         assert(ea2.getIntervals().enclosesAll(expected));        
@@ -147,7 +147,7 @@ public class EnergyAwarenessTest {
     @Test
     public void objectivesWithMissingOrNoDataGoesDefault () {
         var ea = new EnergyAwareness("meow", 10);
-        RangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
+        TreeRangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
         remoteRangeSet1.add(Range.closed(12., 12.5));
         ea.updateRemote("woof", remoteRangeSet1);
         var objectives = ea.getObjectives(28);
@@ -174,10 +174,10 @@ public class EnergyAwarenessTest {
         var ea = new EnergyAwareness("meow", 10);
         ea.addEnergyData(new ArrayList<Double>(), 0.);
         
-        RangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
+        TreeRangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
         remoteRangeSet1.add(Range.closed(12., 12.5));
         ea.updateRemote("woof", remoteRangeSet1);
-        RangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
+        TreeRangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
         remoteRangeSet2.add(Range.closed(14., 16.));
         ea.updateRemote("waf", remoteRangeSet2);
         
@@ -191,11 +191,11 @@ public class EnergyAwarenessTest {
         var ea = new EnergyAwareness("meow", 10);
         ea.addEnergyData(new ArrayList<Double>(), 0.);
 
-        RangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
+        TreeRangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
         remoteRangeSet1.add(Range.closed(10., 20.));
         remoteRangeSet1.add(Range.closed(25., 40.));
         ea.updateRemote("woof", remoteRangeSet1);
-        RangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
+        TreeRangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
         remoteRangeSet2.add(Range.closed(40., 60.));
         remoteRangeSet2.add(Range.closed(80., 110.));       
         ea.updateRemote("waf", remoteRangeSet2);
@@ -204,8 +204,8 @@ public class EnergyAwarenessTest {
         assertEquals(15, (double) objectives.get("woof")); // 10+5
         assertEquals(85, (double) objectives.get("waf")); // 80+5
         var objectives2 = ea.getObjectives(85.);
-        // assertEquals(35, (double) objectives2.get("woof")); // 25+10
-        // assertEquals(50, (double) objectives2.get("waf")); // 40+10
+        assertEquals(35, (double) objectives2.get("woof")); // 25+10
+        assertEquals(50, (double) objectives2.get("waf")); // 40+10
     }
     
 }

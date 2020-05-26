@@ -11,7 +11,6 @@ import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Iterator;
 
-import org.json.*;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
@@ -25,7 +24,7 @@ import com.google.common.collect.TreeRangeSet;
  */
 public class EnergyAwareness {
 
-    private TreeMap<String, RangeSet<Double>> funcToIntervals;
+    private TreeMap<String, TreeRangeSet<Double>> funcToIntervals;
     private LocalEnergyData localEnergyData;
 
     private final String name;
@@ -36,7 +35,7 @@ public class EnergyAwareness {
         this.name = name;
     }
 
-    public TreeMap<String, RangeSet<Double>> getFuncToIntervals() {
+    public TreeMap<String, TreeRangeSet<Double>> getFuncToIntervals() {
         return funcToIntervals;
     }
 
@@ -83,7 +82,7 @@ public class EnergyAwareness {
             funcToIntervals.put(name, TreeRangeSet.create());
     }
 
-    public void updateRemote(String func, RangeSet<Double> costs) {
+    public void updateRemote(String func, TreeRangeSet<Double> costs) {
         // (TODO) could be important to handle version of data
         funcToIntervals.put(func, costs);
     }
@@ -92,20 +91,20 @@ public class EnergyAwareness {
      * Combine local intervals with ones got from remote services to
      * create a new interval. It should be sent to parent service.
      */
-    public RangeSet<Double> combineIntervals() {
+    public TreeRangeSet<Double> combineIntervals() {
         var result = localEnergyData.getIntervals();
         for (var interval : funcToIntervals.values())
             result = _combination(result, interval);        
         return result;
     }
-
-    public RangeSet<Double> getIntervals() { // alias of combine
+    
+    public TreeRangeSet<Double> getIntervals() { // alias of combine
         return combineIntervals();
     }
-
-    public static RangeSet<Double> _combination(RangeSet<Double> i1,
-                                                RangeSet<Double> i2) {
-        RangeSet<Double> result = TreeRangeSet.create();
+    
+    public static TreeRangeSet<Double> _combination(RangeSet<Double> i1,
+                                                    RangeSet<Double> i2) {
+        TreeRangeSet<Double> result = TreeRangeSet.create();
         // #A quick defaults
         if (i1.isEmpty() && i2.isEmpty())
             return result; // empty
@@ -161,7 +160,7 @@ public class EnergyAwareness {
         
         ++groupIndex;
         
-        for (Map.Entry<String, RangeSet<Double>> kv : funcToIntervals.entrySet()) {
+        for (Map.Entry<String, TreeRangeSet<Double>> kv : funcToIntervals.entrySet()) {
             for (var intervals : kv.getValue().asRanges())
                 mckpElements.add(new MCKPElement((int)(intervals.lowerEndpoint()*ratio),
                                                  (int)(intervals.lowerEndpoint()*ratio),
@@ -177,7 +176,7 @@ public class EnergyAwareness {
         for (int i = 0; i < solution.size(); ++i) {            
             double value = solution.get(i).weight / ratio;
             String func = groupToFunc.get(solution.get(i).group);
-            RangeSet<Double> interval = (func.equals(name)) ?
+            TreeRangeSet<Double> interval = (func.equals(name)) ?
                 localIntervals : funcToIntervals.get(func);
                 
             double distance = Double.MAX_VALUE;

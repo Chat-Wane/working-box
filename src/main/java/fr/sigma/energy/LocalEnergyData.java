@@ -50,12 +50,12 @@ public class LocalEnergyData {
     }
 
     // (TODO) cache results of kernel density
-    public RangeSet<Double> getIntervals() {
+    public TreeRangeSet<Double> getIntervals() {
         // kernel needs at least 2 values
         if (inputToCost.size() == 0)
             return TreeRangeSet.create();
         if (inputToCost.size() == 1) {
-            RangeSet<Double> oneValueResult = TreeRangeSet.create();
+            TreeRangeSet<Double> oneValueResult = TreeRangeSet.create();
             var cost = inputToCost.values().stream().findFirst().get();
             oneValueResult.add(Range.closed(cost, cost));
             return oneValueResult;
@@ -82,7 +82,7 @@ public class LocalEnergyData {
 
         double from = 0;
         boolean building = false;
-        RangeSet<Double> results = TreeRangeSet.create();
+        TreeRangeSet<Double> results = TreeRangeSet.create();
         for (int i = 0; i < sample.size(); ++i) {
             if ((avg - sd) <= sample.get(i) && sample.get(i) <= (avg + sd)) {
                 if (!building) {
