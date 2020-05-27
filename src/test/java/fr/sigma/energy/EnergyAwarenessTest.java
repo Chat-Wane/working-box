@@ -207,5 +207,26 @@ public class EnergyAwarenessTest {
         assertEquals(35, (double) objectives2.get("woof")); // 25+10
         assertEquals(50, (double) objectives2.get("waf")); // 40+10
     }
+
+    @Test
+    public void objectiveWithoutSatisfyingSolution () {
+	// i.e. every service cannot run with its minimal requirement
+	var ea = new EnergyAwareness("meow", 10);
+	ea.addEnergyData(new ArrayList<Double>(), 10.);
+
+	TreeRangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
+        remoteRangeSet1.add(Range.closed(10., 20.));
+        remoteRangeSet1.add(Range.closed(25., 40.));
+        ea.updateRemote("woof", remoteRangeSet1);
+        TreeRangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
+        remoteRangeSet2.add(Range.closed(40., 60.));
+        remoteRangeSet2.add(Range.closed(80., 110.));       
+        ea.updateRemote("waf", remoteRangeSet2);
+        
+	var objectives = ea.getObjectives(5.); // no service can run
+	assertEquals(-1, objectives.get("woof"));
+	assertEquals(-1, objectives.get("waf"));
+	assertEquals(-1, objectives.get("meow"));
+    }
     
 }

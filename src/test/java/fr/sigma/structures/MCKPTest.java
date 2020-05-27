@@ -112,4 +112,19 @@ public class MCKPTest {
         assertEquals(new MCKPElement(47,47,1), s.get(1));
         assertEquals(new MCKPElement(0,0,0), s.get(2));        
     }
+
+    @Test
+    public void noSatisfyingSolution () {
+	// ie. minimal requirement in each set not met.
+        var mckp = new MCKP(100,
+                            new ArrayList<>(Arrays.asList(new MCKPElement(0,0,0),
+                                                          new MCKPElement(47,47,1),
+                                                          new MCKPElement(94,94,1),
+                                                          new MCKPElement(11,11,2),
+                                                          new MCKPElement(29,29,2))));
+	for (int i = 0; i < 57; ++i) {
+	    var s = mckp.solve(i);
+	    assert(s.isEmpty());
+	}
+    }
 }

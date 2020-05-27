@@ -6,9 +6,6 @@ import fr.sigma.structures.Polynomes;
 import fr.sigma.structures.Polynome;
 import fr.sigma.structures.Pair;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-
 import io.opentracing.Tracer;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
@@ -128,7 +125,7 @@ public class BoxController {
     @ConditionalOnExpression("${box.energy.peertopeer.enable:false}")
     @RequestMapping("/getEnergyIntervals")
     private ResponseEntity<String> getEnergyIntervals() {
-        if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unugly
+        if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unuglyfy
 	var converter = RangeSetConverter.rangeSetConverter(Doubles.stringConverter().reverse());
 	var stringOfRanges = converter.convert(energyAwareness.combineIntervals()); // (TODO) as json
         return new ResponseEntity<String>(stringOfRanges, HttpStatus.OK);
@@ -149,8 +146,8 @@ public class BoxController {
         var start = LocalDateTime.now();
         var duration = Duration.between(start, LocalDateTime.now());
 
-        // #A initialize objects and reporting
-        if (Objects.isNull(polynomes)) { init(); } // lazy loading
+        // #A initialize objects and reporting 
+        if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unuglyfy
 
         // report important parameters of this box
         Span currentSpan = tracer.scopeManager().activeSpan();
