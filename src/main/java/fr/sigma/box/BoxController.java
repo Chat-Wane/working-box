@@ -44,6 +44,7 @@ import org.apache.commons.lang3.time.DurationFormatUtils;
 
 import com.google.common.collect.TreeRangeSet;
 import com.google.common.collect.Range;
+import com.google.common.primitives.Doubles;
 
 
 
@@ -68,7 +69,6 @@ public class BoxController {
     @Value("${box.energy.call}")
     private String energy_call_url;
     private EnergyAwareness energyAwareness;
-
     private ArgsFilter argsFilter;
     
     @Value("${spring.application.name}")
@@ -78,8 +78,7 @@ public class BoxController {
     private Tracer tracer;
     private RestTemplate restTemplate;
 
-    public BoxController() {
-    }
+    public BoxController() {}
 
     private void init() {
         restTemplate = new RestTemplate();
@@ -113,15 +112,8 @@ public class BoxController {
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
 
-        // (TODO) handle errors
-        // var jsonEnergyAwareness = restTemplate
-        //     .getForEntity(String.format("%s?name=handle@%s",
-        //                                 energy_call_url,
-        //                                 service_name),
-        //                   String.class).getBody();
         energyAwareness = new EnergyAwareness(service_name, 10); // (TODO) configurable
         energyAwareness.updateRemotes(names);
-        // energyAwareness.update(jsonEnergyAwareness);
 
         argsFilter = new ArgsFilter();
         argsFilter.setThreshold(4); // (TODO) config
@@ -137,10 +129,9 @@ public class BoxController {
     @RequestMapping("/getEnergyIntervals")
     private ResponseEntity<String> getEnergyIntervals() {
         if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unugly
-        
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String json = gson.toJson(energyAwareness.combineIntervals());        
-        return new ResponseEntity<String>(json, HttpStatus.OK);
+	var converter = RangeSetConverter.rangeSetConverter(Doubles.stringConverter().reverse());
+	var stringOfRanges = converter.convert(energyAwareness.combineIntervals()); // (TODO) as json
+        return new ResponseEntity<String>(stringOfRanges, HttpStatus.OK);
     }
 
     /**
@@ -219,7 +210,13 @@ public class BoxController {
             duration = Duration.between(start, LocalDateTime.now());
         }
 
-        updateEnergy(args, start, LocalDateTime.now());
+	while (i < address_time_list.size()) { // call the rest that may have been skipped
+	    callRemote(address_time_list.get(i).first, args, headers, objectives,
+		       currentSpan, 100);
+	    ++i;
+	}
+	
+	updateEnergy(args, start, LocalDateTime.now());
         return new ResponseEntity<String>(":)", HttpStatus.OK);
     }
 
@@ -238,35 +235,44 @@ public class BoxController {
         
         CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
                 logger.info(String.format("Calling %s at %s percent.",
-                                          url, progress));
-                
+                                          url, progress));                
                 var myheader = new HttpHeaders();
                 for (var header : headers.keySet())
                     if (header.contains("x-")) // propagate tracing headers
                         myheader.set(header, headers.get(header));
                 myheader.set("x-b3-spanid", currentSpan.context().toSpanId());
                 if (!Objects.isNull(objectives)) {
-                    var port = url.split(":")[2]; // (TODO) different name <-> url
-                    var name = String.format("handle@box-%s", port);
+                    // var port = url.split(":")[2]; // (TODO) different name <-> url
+                    // var name = String.format("handle@box-%s", port);
                     // (TODO) handle error when no name
-                    myheader.set("objective", objectives.get(name).toString());
+		    if (objectives.containsKey(url))		       
+			myheader.set("objective", objectives.get(url).toString());
+		    else
+			System.out.println("KEY NOT FOUND");
                 }
                 var argsToSend = new LinkedMultiValueMap<String, String>();
                 argsToSend.add("args", Arrays.stream(args)
                                .map(String::valueOf)
                                .collect(Collectors.joining(",")));
                 var request = new HttpEntity<MultiValueMap<String, String>>(argsToSend,
-                                                                            myheader);
-
-                return restTemplate.postForEntity(url, request, String.class,
-                                                  argsToSend).toString();
-            });
+									    myheader);
+		var result = ":(";
+		try {
+		    result = restTemplate.postForEntity(url, request, String.class,
+							argsToSend).toString();
+		    // logger.info(String.format("Got the result %s from %s",
+		    // result, url));
+		} catch (Exception e) {
+		    logger.warn(e.toString());
+		}
+                return result;
+	    });
     }
 
 
 
 
-    // (TODO) from span
+    // (TODO) from span get from, get to, get args, get remote calls
     private void updateEnergy (Double[] args, LocalDateTime from, LocalDateTime to) {
         // (TODO) call energy stuff, for now, cost is only about duration
         energyAwareness.addEnergyData(new ArrayList<Double>(Arrays.asList(args)),
@@ -274,18 +280,16 @@ public class BoxController {
 
         for (var address_time : address_time_list) { // (TODO) how often ? 
             try {
-                var jsonRangeSet = restTemplate
+                var stringRangeSet = restTemplate // (TODO) as json
                     .getForEntity(String.format("%s/getEnergyIntervals",
                                                 address_time.first),
                                   String.class).getBody();
-                System.out.println(jsonRangeSet);
-                Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                gson.registerTypeAdapter(Range.class, new GoogleRangeAdapter());
-                TreeRangeSet<Double> meow = TreeRangeSet.create();
-                TreeRangeSet<Double> costs =  gson.fromJson(jsonRangeSet,
-                                                            meow.getClass());
-                energyAwareness.updateRemote(address_time.first,
-                                             costs);
+		var converter = RangeSetConverter.rangeSetConverter(Doubles.stringConverter()
+								    .reverse());
+		var costs = converter.reverse().convert(stringRangeSet);
+		logger.info(String.format("Just received remote energy data: %s sets from %s.",
+					  costs.asRanges().size(), address_time.first));
+                energyAwareness.updateRemote(address_time.first, costs);
             } catch (Exception e) {
                 logger.warn("Call to get remote energy consumption failed.");
                 System.out.println(e);
