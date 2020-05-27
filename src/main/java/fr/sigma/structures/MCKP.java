@@ -121,13 +121,15 @@ public class MCKP {
     public ArrayList<Integer> backtrack(int objective) {
         if (elements.size()<=1)
             return new ArrayList(); // default empty
-        
-        var indexOfValidItems = new ArrayList<Integer>();
-
+       
         // start at the proper row column in the matrix
         int y = m.size() - 1;
-        int x = objective;        
+        int x = objective;
 
+	if (m.get(y).get(x) == -1)
+	    return new ArrayList(); // no solution
+
+	var indexOfValidItems = new ArrayList<Integer>();
         int iCurrentGroup = iGroup.size();
 
         while (y > 0) {

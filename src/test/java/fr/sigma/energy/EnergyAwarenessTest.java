@@ -224,9 +224,14 @@ public class EnergyAwarenessTest {
         ea.updateRemote("waf", remoteRangeSet2);
         
 	var objectives = ea.getObjectives(5.); // no service can run
-	assertEquals(-1, objectives.get("woof"));
-	assertEquals(-1, objectives.get("waf"));
-	assertEquals(-1, objectives.get("meow"));
+	assertEquals(-1, (double) objectives.get("woof"));
+	assertEquals(-1, (double) objectives.get("waf"));
+	assertEquals(-1, (double) objectives.get("meow"));
+
+	var objectives2 = ea.getObjectives(11.); // second service can't run
+	assertEquals(-1, (double) objectives.get("woof"));
+	assertEquals(-1, (double) objectives.get("waf"));
+	assertEquals(-1, (double) objectives.get("meow"));	
     }
     
 }

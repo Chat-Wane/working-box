@@ -117,14 +117,15 @@ public class MCKPTest {
     public void noSatisfyingSolution () {
 	// ie. minimal requirement in each set not met.
         var mckp = new MCKP(100,
-                            new ArrayList<>(Arrays.asList(new MCKPElement(0,0,0),
+                            new ArrayList<>(Arrays.asList(new MCKPElement(1,1,0),
                                                           new MCKPElement(47,47,1),
                                                           new MCKPElement(94,94,1),
                                                           new MCKPElement(11,11,2),
                                                           new MCKPElement(29,29,2))));
-	for (int i = 0; i < 57; ++i) {
+	for (int i = 0; i < 58; ++i) {
 	    var s = mckp.solve(i);
 	    assert(s.isEmpty());
 	}
+	assert(!mckp.solve(59).isEmpty());
     }
 }

@@ -136,15 +136,16 @@ public class EnergyAwareness {
         for (var interval : funcToIntervals.values())
             if (!goDefault && interval.isEmpty())
                 goDefault = true;
-        
-        if (goDefault) {
-            var results = new TreeMap<String, Double>();
-            results.put(name, -1.);
-            for (var func : funcToIntervals.keySet())
-                results.put(func, -1.);
-            return results;
-        }
-        
+
+	var defaultResult = new TreeMap<String, Double>();
+	defaultResult.put(name, -1.);
+	for (var func : funcToIntervals.keySet())
+	    defaultResult.put(func, -1.);
+	
+        if (goDefault) 
+            return defaultResult;
+
+	
         double ratio = 1000. / objective; // (TODO) configurable scaling
         var groupToFunc = new TreeMap<Integer, String>();
 
@@ -172,6 +173,9 @@ public class EnergyAwareness {
         var mckp = new MCKP(1000, mckpElements); // (TODO) cache mckp
         var solution = mckp.solve(1000);
 
+	if (solution.isEmpty())
+	    return defaultResult;
+	
         var funcToInterval = new TreeMap<String, Range>();
         for (int i = 0; i < solution.size(); ++i) {            
             double value = solution.get(i).weight / ratio;
