@@ -49,37 +49,13 @@ public class EnergyAwareness {
 
 
     
-    public void update(String message) {
-        // (TODO)
-    }
-    //     // (TODO) not handle manually json parsing
-    //     JSONObject obj = new JSONObject(message);
-    //     var xs = obj.getJSONObject("xy").getJSONArray("x");
-    //     var ys = obj.getJSONObject("xy").getJSONArray("y");
-    //     for (int i = 0; i < xs.length(); ++i){
-    //         String x = xs.getString(i);
-    //         Double y = ys.getDouble(i);
-    //         xy.put(x, y);
-    //     }
-
-    //     var minmax = obj.getJSONObject("minmax");
-    //     Iterator<String> keys = minmax.keys();
-        
-    //     while (keys.hasNext()) {
-    //         var remote = keys.next();
-    //         var min = minmax.getJSONObject(remote).getDouble("min");
-    //         var max = minmax.getJSONObject(remote).getDouble("max");
-    //         funcToMinMax.put(remote, new Pair(min, max));
-    //     }
-    // }
-
     public void addEnergyData(ArrayList<Double> args, double cost) {
         localEnergyData.addEnergyData(args, cost);
     }
 
     public void updateRemotes(ArrayList<String> names) {
         for (var func : names)
-            funcToIntervals.put(name, TreeRangeSet.create());
+            funcToIntervals.put(func, TreeRangeSet.create());
     }
 
     public void updateRemote(String func, TreeRangeSet<Double> costs) {
@@ -132,19 +108,20 @@ public class EnergyAwareness {
     public TreeMap<String, Double> getObjectives(double objective) {
         // Check if has enough data to create objectives, otherwise, default
         // values are returned.
-        boolean goDefault = localEnergyData.getIntervals().isEmpty();
-        for (var interval : funcToIntervals.values())
-            if (!goDefault && interval.isEmpty())
+        boolean goDefault = localEnergyData.getIntervals().isEmpty();	
+        for (var interval : funcToIntervals.values()) {
+	    if (!goDefault && interval.isEmpty())
                 goDefault = true;
-
+	}	
 	var defaultResult = new TreeMap<String, Double>();
 	defaultResult.put(name, -1.);
 	for (var func : funcToIntervals.keySet())
 	    defaultResult.put(func, -1.);
-	
+
         if (goDefault) 
             return defaultResult;
 
+	// Otherwiiiiiiiiise, process objectives of children and self.
 	
         double ratio = 1000. / objective; // (TODO) configurable scaling
         var groupToFunc = new TreeMap<Integer, String>();

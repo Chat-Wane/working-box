@@ -38,6 +38,8 @@ public class LocalEnergyData {
         inputToCost = new TreeMap();
         costToInput = new TreeMap();
 	inputToArgs = new TreeMap();
+	logger.info(String.format("Initialized local energy data with a maximum size of %s.",
+				  maxSize));
     }
 
     public int getMaxSize() {

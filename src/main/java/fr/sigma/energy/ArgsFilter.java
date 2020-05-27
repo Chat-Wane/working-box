@@ -26,16 +26,20 @@ public class ArgsFilter {
         // Default 100 buckets, 3 hash functions
         counting = new CountingBloomFilter(100, 3, Hash.JENKINS_HASH);
         threshold = 14;
+	logger.info(String.format("Initialized filter with a threshold of %s", threshold));
     }
     
-    public ArgsFilter (int numberOfValues) {
+    public ArgsFilter (int threshold) {
+        // Default 100 buckets, 3 hash functions
+        counting = new CountingBloomFilter(100, 3, Hash.JENKINS_HASH);
+        this.threshold = threshold;
+	logger.info(String.format("Initialized filter with a threshold of %s", threshold));
+    }
+
+    public ArgsFilter (int threshold, int numberOfValues) {
         // (TODO) smarter allocation depending on parameters
     }
-
-    public void setThreshold (int threshold) {
-        this.threshold = threshold;
-    }
-
+    
     public int getThreshold () {
         return threshold;
     }

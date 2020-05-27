@@ -35,8 +35,7 @@ public class ArgsFilterTest {
 
     @Test
     public void aboveThresh () {
-        var filter = new ArgsFilter();
-        filter.setThreshold(4);
+        var filter = new ArgsFilter(4);
         var args = new ArrayList<Double>(Arrays.asList(42.));
         var stop = filter.isTriedEnough(args);
         assert(!stop);

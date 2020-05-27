@@ -7,8 +7,6 @@ import fr.sigma.structures.Polynome;
 import fr.sigma.structures.Pair;
 
 import io.opentracing.Tracer;
-import io.opentracing.Scope;
-import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import io.opentracing.tag.StringTag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -63,11 +61,17 @@ public class BoxController {
     private List<String> remote_calls;
     private ArrayList<Pair<String, Integer>> address_time_list;
 
-    @Value("${box.energy.call}")
-    private String energy_call_url;
-    private EnergyAwareness energyAwareness;
+    @Value("${box.energy.call.url}")
+    private String energy_call_url; // (TODO) use this
+
+    @Value("${box.energy.threshold.before.self.tuning.args:14}")
+    private Integer energy_threshold_before_self_tuning_args;
     private ArgsFilter argsFilter;
     
+    @Value("${box.energy.max.local.data:20}")
+    private Integer energy_max_local_data;
+    private EnergyAwareness energyAwareness;
+
     @Value("${spring.application.name}")
     private String service_name;
     
@@ -109,11 +113,9 @@ public class BoxController {
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
 
-        energyAwareness = new EnergyAwareness(service_name, 10); // (TODO) configurable
+	argsFilter = new ArgsFilter(energy_threshold_before_self_tuning_args);
+        energyAwareness = new EnergyAwareness(service_name, energy_max_local_data);
         energyAwareness.updateRemotes(names);
-
-        argsFilter = new ArgsFilter();
-        argsFilter.setThreshold(4); // (TODO) config
     }
 
     /**
@@ -157,7 +159,7 @@ public class BoxController {
             if (polynomes.polynomes.get(i).coefficients.size() > 1) {
                 // > 1 depends on a variable x, otherwise constant
                 var index = polynomes.indices.get(i);
-                parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index]));
+                parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index])); // jaeger
                 doubleParameters.add(args[index]);
             }
         }
@@ -169,20 +171,28 @@ public class BoxController {
         // #B Energy awareness handler, distribute objectives, modify parameters
         TreeMap<String, Double> objectives = null;
         if (headers.keySet().contains("objective")) {
-            var objective = headers.get("objective");
+            var objective = Double.parseDouble(headers.get("objective"));
             logger.info(String.format("This box has an energy consumption objective of %s",
                                       objective));
-            objectives = energyAwareness.getObjectives(Double.parseDouble(objective));
-            logger.info(String.format("Distributes energy objective as: %s.", objectives));
-            
-            if (argsFilter.isTriedEnough(doubleParameters)) {                
+	    
+	    if (argsFilter.isTriedEnough(doubleParameters)) {
+		objectives = energyAwareness.getObjectives(objective);
+		logger.info(String.format("Distributes energy objective as: %s.", objectives));
+		
                 var solution = energyAwareness.solveObjective(objectives.get(service_name));
-                logger.info(String.format("Rewrites local arguments: %s -> %s",
-                                          Arrays.toString(parameters.toArray()),
-                                          Arrays.toString(solution)));
+		if (!Objects.isNull(solution)) {
+		    logger.info(String.format("Rewrites local arguments: %s -> %s",
+					      Arrays.toString(parameters.toArray()),
+					      Arrays.toString(solution)));
+		    // replace with new args that are closer to objective
+		    for (int i = 0; i < polynomes.indices.size(); ++i) {
+			var index = polynomes.indices.get(i);
+			args[index] = solution[index];
+		    }
+		}
             }
         }
-
+	
 
 
         // #C Main loop for different calls to remote services
@@ -214,9 +224,9 @@ public class BoxController {
 	}
 	
 	updateEnergy(args, start, LocalDateTime.now());
-        return new ResponseEntity<String>(":)", HttpStatus.OK);
+        return new ResponseEntity<String>(":)\n", HttpStatus.OK);
     }
-
+    
 
     /**
      * Asynchronous call of a remote service. Headers are overloaded depending on
