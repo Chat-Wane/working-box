@@ -1,9 +1,11 @@
 package fr.sigma.energy;
 
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
@@ -29,12 +31,13 @@ public class LocalEnergyData {
     private int maxSize = 10;
     private TreeMap<String, Double> inputToCost;
     private TreeMap<Double, String> costToInput;
-
+    private TreeMap<String, ArrayList<Double>> inputToArgs;
     
     public LocalEnergyData (int maxSize) {
+	this.maxSize = maxSize;
         inputToCost = new TreeMap();
         costToInput = new TreeMap();
-        this.maxSize = maxSize;
+	inputToArgs = new TreeMap();
     }
 
     public int getMaxSize() {
@@ -49,6 +52,22 @@ public class LocalEnergyData {
         return inputToCost.values().stream().mapToDouble(e->e).sorted().toArray();
     }
 
+    public double[] getClosest(double objective) {
+	var min = Double.POSITIVE_INFINITY;
+	String input = null;
+	for (Map.Entry<String, Double> ic : inputToCost.entrySet()) {
+	    if (Math.abs(objective - ic.getValue()) < min) {
+		min = Math.abs(objective - ic.getValue());
+		input = ic.getKey();
+	    }
+	}
+	
+	return Objects.isNull(input) ? null :
+	    inputToArgs.get(input).stream().mapToDouble(e->e).toArray();
+    }
+    
+
+    
     // (TODO) cache results of kernel density
     public TreeRangeSet<Double> getIntervals() {
         // kernel needs at least 2 values
@@ -128,6 +147,7 @@ public class LocalEnergyData {
         if (inputToCost.size() < maxSize) {
             inputToCost.put(key, cost);
             costToInput.put(cost, key);
+	    inputToArgs.put(key, args);
             return ;
         }
 
@@ -188,11 +208,13 @@ public class LocalEnergyData {
         double[] densityAsDoubleChanged = densityAsStreamChangedSupplier.get().toArray();
 
         // System.out.println(String.format("%s -> %s", average, averageChanged));
-        if (average > averageChanged) {
+        if (average > averageChanged) { // Replace
             inputToCost.remove(costToInput.get(maxValue));
+	    inputToArgs.remove(costToInput.get(maxValue));
             costToInput.remove(maxValue);
             inputToCost.put(key, cost);
             costToInput.put(cost, key);
+	    inputToArgs.put(key, args);
             
             // System.out.println(String.format("COSTS = %s",
             //                                  Arrays.toString(inputToCost.values().stream().mapToDouble(e->e).sorted().toArray())));

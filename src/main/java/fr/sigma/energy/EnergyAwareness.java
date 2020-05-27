@@ -246,33 +246,10 @@ public class EnergyAwareness {
     }
 
 
-    public Double[] solveObjective(double objective) {
-        return null; // (TODO)
+    public double[] solveObjective(double objective) {
+	if (objective < 0) return null; // default when objective unknown	
+        return localEnergyData.getClosest(objective);
     }
-    
-    // (TODO) add read-only variables
-    // default value is null, it should keep args as input
-    // public Double[] solveObjective(double objective) {
-    //     if (objective < 0) return null; // objective unknown
-    //     // (TODO) sort xy to get logarithmic complexity
-    //     var min = Double.POSITIVE_INFINITY;
-    //     String args = null;
-    //     for (Map.Entry<String, Double> kv : xy.entrySet()) {
-    //         if (Math.abs(objective - kv.getValue()) < min) {
-    //             min = Math.abs(objective - kv.getValue());
-    //             args = kv.getKey();
-    //         }
-    //     }
-
-    //     var toParse = new JSONArray("["+ args+"]"); // (TODO) fix "[" "]" because it was not list
-    //     //        var toParse = new JSONArray(args);
-    //     Double[] xs = new Double[toParse.length()];
-    //     for (int i = 0; i < toParse.length(); ++i) {
-    //         xs[i] = toParse.getDouble(i);
-    //     }
-        
-    //     return xs;
-    // }
     
 }
 
