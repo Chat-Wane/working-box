@@ -241,15 +241,11 @@ public class BoxController {
                     if (header.contains("x-")) // propagate tracing headers
                         myheader.set(header, headers.get(header));
                 myheader.set("x-b3-spanid", currentSpan.context().toSpanId());
-                if (!Objects.isNull(objectives)) {
-                    // var port = url.split(":")[2]; // (TODO) different name <-> url
-                    // var name = String.format("handle@box-%s", port);
-                    // (TODO) handle error when no name
-		    if (objectives.containsKey(url))		       
-			myheader.set("objective", objectives.get(url).toString());
-		    else
-			System.out.println("KEY NOT FOUND");
-                }
+                if (!Objects.isNull(objectives) && objectives.containsKey(url))
+		    myheader.set("objective", objectives.get(url).toString());
+		else
+		    myheader.set("objective", "-1.0"); // default
+
                 var argsToSend = new LinkedMultiValueMap<String, String>();
                 argsToSend.add("args", Arrays.stream(args)
                                .map(String::valueOf)
@@ -263,7 +259,8 @@ public class BoxController {
 		    // logger.info(String.format("Got the result %s from %s",
 		    // result, url));
 		} catch (Exception e) {
-		    logger.warn(e.toString());
+		    logger.warn(String.format("Error while calling %s.", url));
+		    // logger.warn(e.toString());
 		}
                 return result;
 	    });
@@ -278,7 +275,8 @@ public class BoxController {
         energyAwareness.addEnergyData(new ArrayList<Double>(Arrays.asList(args)),
                                       (double) Duration.between(from, to).toMillis());
 
-        for (var address_time : address_time_list) { // (TODO) how often ? 
+	// (TODO) how often? maybe inverse direction
+        for (var address_time : address_time_list) {
             try {
                 var stringRangeSet = restTemplate // (TODO) as json
                     .getForEntity(String.format("%s/getEnergyIntervals",
@@ -291,8 +289,8 @@ public class BoxController {
 					  costs.asRanges().size(), address_time.first));
                 energyAwareness.updateRemote(address_time.first, costs);
             } catch (Exception e) {
-                logger.warn("Call to get remote energy consumption failed.");
-                System.out.println(e);
+                logger.warn(String.format("Error while calling %s to get energy costs.",
+					  address_time.first));
                 // (TODO) can fall down to remote dedicated service.
             }
         }
