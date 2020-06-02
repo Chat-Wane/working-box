@@ -62,7 +62,7 @@ public class EnergyAwareness {
      * @param args the args that matter to the local function
      * @return a pair <objectives , self-tuned args>
      */
-    public Pair<TreeMap<String, Double>, Double[]> newFunctionCall(int objective,
+    public Pair<TreeMap<String, Double>, Double[]> newFunctionCall(double objective,
                                                                    Double[] args) {
         if (objective < 0) {
             logger.info("This box has no energy objective defined.");
@@ -73,7 +73,7 @@ public class EnergyAwareness {
                                   objective));
         
         TreeMap<String, Double> objectives = null;
-        Double[] solution = null;
+        Double[] solution = args;
         if (argsFilter.isTriedEnough(args)) {
             objectives = getObjectives(objective);
             logger.info(String.format("Distributes energy objective as: %s.", objectives));
@@ -83,6 +83,8 @@ public class EnergyAwareness {
                 logger.info(String.format("Rewrites local arguments: %s -> %s.",
                                           Arrays.toString(args),
                                           Arrays.toString(solution)));
+            } else {
+                solution = args;
             }
         }
         return new Pair(objectives, solution);
@@ -149,7 +151,7 @@ public class EnergyAwareness {
     public TreeMap<String, Double> getObjectives(double objective) {
         // Check if has enough data to create objectives, otherwise, default
         // values are returned.
-        boolean goDefault = localEnergyData.getIntervals().isEmpty();	
+        boolean goDefault = localEnergyData.getIntervals().isEmpty() || objective < 0;	
         for (var interval : funcToIntervals.values()) {
 	    if (!goDefault && interval.isEmpty())
                 goDefault = true;

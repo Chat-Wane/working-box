@@ -1,7 +1,6 @@
 package fr.sigma.box;
 
 import fr.sigma.energy.EnergyAwareness;
-import fr.sigma.energy.ArgsFilter;
 import fr.sigma.structures.Polynomes;
 import fr.sigma.structures.Polynome;
 import fr.sigma.structures.Pair;
@@ -36,9 +35,6 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.time.DurationFormatUtils;
-
-import com.google.common.collect.TreeRangeSet;
-import com.google.common.collect.Range;
 import com.google.common.primitives.Doubles;
 
 
@@ -143,24 +139,22 @@ public class BoxController {
     private ResponseEntity<String> handle(Double[] args,
                                           @RequestHeader Map<String, String> headers) {
         var start = LocalDateTime.now();
-        var duration = Duration.between(start, LocalDateTime.now());        
-
+        var duration = Duration.between(start, LocalDateTime.now());
+        Span currentSpan = tracer.scopeManager().activeSpan();
+        
         // #A initialize objects and reporting 
         if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unuglyfy
-        
+                
         // keep important parameters of this box
         Double[] copyArgs = new Double[args.length];
+        for (int i = 0; i < copyArgs.length; ++i)
+            copyArgs[i] = 0.;
         for (int i = 0; i < polynomes.indices.size(); ++i)
-            copyArgs[polynomes.indices.get(i)] = args[polynomes.indices.get(i)];
+            if (polynomes.polynomes.get(i).coefficients.size() > 1) // not constant
+                copyArgs[polynomes.indices.get(i)] = args[polynomes.indices.get(i)];
         
-        // (TODO) refactor jaeger tracing outside
-        Span currentSpan = tracer.scopeManager().activeSpan();
-        //var parametersString = String.format("[%s]", String.join(",", parameters));
-        //parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index]));//jaeger wasinloop
-        // currentSpan.setTag(PARAMETERS, parametersString);
-
 
-
+        
         // #B Energy awareness handler, distribute objectives, modify parameters
         TreeMap<String, Double> objectives = null;
         Double[] solution = copyArgs;
@@ -174,6 +168,7 @@ public class BoxController {
 
 
         // #C Main loop for different calls to remote services
+        logger.info(String.format("This box executes with args: %s", Arrays.toString(solution)));
         var polyResult = polynomes.get(solution);
         var limit = polyResult > 0 ? Duration.ofMillis(polyResult) : Duration.ZERO;  
         logger.info(String.format("This box must run during %s and call %s other boxes",
@@ -198,8 +193,13 @@ public class BoxController {
         for (int j = i; j < address_time_list.size(); ++j)
 	    callRemote(address_time_list.get(j).first, args, headers, objectives,
 		       currentSpan, 100);
-        
+
+
+
+        // #D monitor and update local energy        
 	updateEnergy(solution, start, LocalDateTime.now());
+        reportEnergy(currentSpan, solution);
+                                
         return new ResponseEntity<String>(":)\n", HttpStatus.OK);
     }
     
@@ -257,7 +257,7 @@ public class BoxController {
         // (TODO) call energy stuff, for now, cost is only about duration
         energyAwareness.addEnergyData(args, (double) Duration.between(from, to).toMillis());
         
-	// (TODO) how often? maybe inverse direction
+	// (TODO) how often? maybe inverse direction0
         for (var address_time : address_time_list) {
             try {
                 var stringRangeSet = restTemplate // (TODO) as json
@@ -276,5 +276,12 @@ public class BoxController {
                 // (TODO) can fall down to remote dedicated service.
             }
         }
+    }
+
+
+
+    private void reportEnergy (Span currentSpan, Double[] args) {
+        // (TODO) different type of variables Read/Write
+        currentSpan.setTag(PARAMETERS, Arrays.toString(args));      
     }
 }
