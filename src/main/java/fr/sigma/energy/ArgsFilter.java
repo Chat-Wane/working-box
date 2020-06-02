@@ -47,10 +47,10 @@ public class ArgsFilter {
     /**
      * Checks if the arguments should be used as is, or self-tuned, depending
      * on the number of times they have been used in the past.
-     * @param args: the arguments of the endpoint.
+     * @param args the arguments of the endpoint.
      * @returns True if the arguments should be self-tuned, false otherwise.
      */
-    public boolean isTriedEnough (ArrayList<Double> args) {
+    public boolean isTriedEnough (Double[] args) {
         var key = new Key(toBytes(args));
         int count = counting.approximateCount(key);
         logger.info(String.format("Args have been seen roughly %s times before.",
@@ -62,12 +62,14 @@ public class ArgsFilter {
 
 
     
-    private byte[] toBytes (ArrayList<Double> args) {
-        if (args.isEmpty())
+    private byte[] toBytes (Double[] args) {
+        if (args.length == 0)
             return new byte[1];
         
-        byte[] keyBytes = new byte[0];
-        for (Double arg : args) {
+        byte[] keyBytes = new byte[0];        
+        for (int i = 0; i < args.length; ++i) {
+            var arg = args[i];
+                
             byte[] bytes = ByteBuffer.allocate(8).putDouble(arg).array();
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             try {

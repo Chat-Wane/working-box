@@ -4,6 +4,7 @@ import fr.sigma.structures.Pair;
 import fr.sigma.structures.MCKP;
 import fr.sigma.structures.MCKPElement;
 
+import java.util.Objects;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.TreeMap;
@@ -14,6 +15,8 @@ import java.util.Iterator;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
     
 
 
@@ -24,14 +27,18 @@ import com.google.common.collect.TreeRangeSet;
  */
 public class EnergyAwareness {
 
+    private Logger logger = LoggerFactory.getLogger(getClass());
+    
     private TreeMap<String, TreeRangeSet<Double>> funcToIntervals;
     private LocalEnergyData localEnergyData;
-
+    private ArgsFilter argsFilter;
+    
     private final String name;
     
-    public EnergyAwareness(String name, int maxSizeOfLocalData) {
+    public EnergyAwareness(String name, int maxSizeOfLocalData, int thresholdFilter) {
         funcToIntervals = new TreeMap();
         localEnergyData = new LocalEnergyData(maxSizeOfLocalData);
+        argsFilter = new ArgsFilter(thresholdFilter);
         this.name = name;
     }
 
@@ -48,8 +55,42 @@ public class EnergyAwareness {
     }
 
 
+
+    /**
+     * Process the new call to the function.
+     * @param objective the objective that has been set by parent service.
+     * @param args the args that matter to the local function
+     * @return a pair <objectives , self-tuned args>
+     */
+    public Pair<TreeMap<String, Double>, Double[]> newFunctionCall(int objective,
+                                                                   Double[] args) {
+        if (objective < 0) {
+            logger.info("This box has no energy objective defined.");
+            return new Pair(getObjectives(objective), args); // default
+        }
+        
+        logger.info(String.format("This box has an energy consumption objective of %s.",
+                                  objective));
+        
+        TreeMap<String, Double> objectives = null;
+        Double[] solution = null;
+        if (argsFilter.isTriedEnough(args)) {
+            objectives = getObjectives(objective);
+            logger.info(String.format("Distributes energy objective as: %s.", objectives));
+            
+            solution = solveObjective(objectives.get(name));
+            if (!Objects.isNull(solution)) {
+                logger.info(String.format("Rewrites local arguments: %s -> %s.",
+                                          Arrays.toString(args),
+                                          Arrays.toString(solution)));
+            }
+        }
+        return new Pair(objectives, solution);
+    }
     
-    public void addEnergyData(ArrayList<Double> args, double cost) {
+
+    
+    public void addEnergyData(Double[] args, double cost) {
         localEnergyData.addEnergyData(args, cost);
     }
 
@@ -223,7 +264,7 @@ public class EnergyAwareness {
     }
 
 
-    public double[] solveObjective(double objective) {
+    public Double[] solveObjective(double objective) {
 	if (objective < 0) return null; // default when objective unknown	
         return localEnergyData.getClosest(objective);
     }

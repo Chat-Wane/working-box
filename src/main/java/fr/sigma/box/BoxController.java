@@ -63,11 +63,8 @@ public class BoxController {
 
     @Value("${box.energy.call.url}")
     private String energy_call_url; // (TODO) use this
-
     @Value("${box.energy.threshold.before.self.tuning.args:14}")
     private Integer energy_threshold_before_self_tuning_args;
-    private ArgsFilter argsFilter;
-    
     @Value("${box.energy.max.local.data:20}")
     private Integer energy_max_local_data;
     private EnergyAwareness energyAwareness;
@@ -113,8 +110,8 @@ public class BoxController {
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
 
-	argsFilter = new ArgsFilter(energy_threshold_before_self_tuning_args);
-        energyAwareness = new EnergyAwareness(service_name, energy_max_local_data);
+        energyAwareness = new EnergyAwareness(service_name, energy_max_local_data,
+                                              energy_threshold_before_self_tuning_args);
         energyAwareness.updateRemotes(names);
     }
 
@@ -146,57 +143,38 @@ public class BoxController {
     private ResponseEntity<String> handle(Double[] args,
                                           @RequestHeader Map<String, String> headers) {
         var start = LocalDateTime.now();
-        var duration = Duration.between(start, LocalDateTime.now());
+        var duration = Duration.between(start, LocalDateTime.now());        
 
         // #A initialize objects and reporting 
         if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unuglyfy
-
-        // report important parameters of this box
+        
+        // keep important parameters of this box
+        Double[] copyArgs = new Double[args.length];
+        for (int i = 0; i < polynomes.indices.size(); ++i)
+            copyArgs[polynomes.indices.get(i)] = args[polynomes.indices.get(i)];
+        
+        // (TODO) refactor jaeger tracing outside
         Span currentSpan = tracer.scopeManager().activeSpan();
-        var parameters = new ArrayList<String>();
-        var doubleParameters = new ArrayList<Double>();
-        for (int i = 0; i < polynomes.indices.size(); ++i) {
-            if (polynomes.polynomes.get(i).coefficients.size() > 1) {
-                // > 1 depends on a variable x, otherwise constant
-                var index = polynomes.indices.get(i);
-                parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index])); // jaeger
-                doubleParameters.add(args[index]);
-            }
-        }
-        var parametersString = String.format("[%s]", String.join(",", parameters));
-        currentSpan.setTag(PARAMETERS, parametersString);
+        //var parametersString = String.format("[%s]", String.join(",", parameters));
+        //parameters.add(String.format("{\"x%s\": \"%s\"}", index, args[index]));//jaeger wasinloop
+        // currentSpan.setTag(PARAMETERS, parametersString);
 
 
 
         // #B Energy awareness handler, distribute objectives, modify parameters
         TreeMap<String, Double> objectives = null;
+        Double[] solution = copyArgs;
         if (headers.keySet().contains("objective")) {
-            var objective = Double.parseDouble(headers.get("objective"));
-            logger.info(String.format("This box has an energy consumption objective of %s",
-                                      objective));
-	    
-	    if (argsFilter.isTriedEnough(doubleParameters)) {
-		objectives = energyAwareness.getObjectives(objective);
-		logger.info(String.format("Distributes energy objective as: %s.", objectives));
-		
-                var solution = energyAwareness.solveObjective(objectives.get(service_name));
-		if (!Objects.isNull(solution)) {
-		    logger.info(String.format("Rewrites local arguments: %s -> %s",
-					      Arrays.toString(parameters.toArray()),
-					      Arrays.toString(solution)));
-		    // replace with new args that are closer to objective
-		    for (int i = 0; i < polynomes.indices.size(); ++i) {
-			var index = polynomes.indices.get(i);
-			args[index] = solution[index];
-		    }
-		}
-            }
+            var objective = (int) Double.parseDouble(headers.get("objective"));
+            var os = energyAwareness.newFunctionCall(objective, copyArgs);
+            objectives = os.first;
+            solution = os.second;
         }
-	
+        
 
 
         // #C Main loop for different calls to remote services
-        var polyResult = polynomes.get(args);
+        var polyResult = polynomes.get(solution);
         var limit = polyResult > 0 ? Duration.ofMillis(polyResult) : Duration.ZERO;  
         logger.info(String.format("This box must run during %s and call %s other boxes",
                                   DurationFormatUtils.formatDurationHMS(limit.toMillis()),
@@ -204,11 +182,10 @@ public class BoxController {
         
         int i = 0;
         while (duration.minus(limit).isNegative()) {
-            double progress = (double) duration.toMillis() /
-                (double) limit.toMillis() * 100.;
-
+            var progress = (double) duration.toMillis() / (double) limit.toMillis() * 100.;
+            
             while (i < address_time_list.size() &&
-                   progress > address_time_list.get(i).second) {                
+                   progress > address_time_list.get(i).second) {
                 callRemote(address_time_list.get(i).first, args, headers, objectives,
                            currentSpan, (int) progress);
                 ++i;
@@ -217,13 +194,12 @@ public class BoxController {
             duration = Duration.between(start, LocalDateTime.now());
         }
 
-	while (i < address_time_list.size()) { // call the rest that may have been skipped
-	    callRemote(address_time_list.get(i).first, args, headers, objectives,
+	// while (i < address_time_list.size()) { // call the rest that would have been skipped
+        for (int j = i; j < address_time_list.size(); ++j)
+	    callRemote(address_time_list.get(j).first, args, headers, objectives,
 		       currentSpan, 100);
-	    ++i;
-	}
-	
-	updateEnergy(args, start, LocalDateTime.now());
+        
+	updateEnergy(solution, start, LocalDateTime.now());
         return new ResponseEntity<String>(":)\n", HttpStatus.OK);
     }
     
@@ -279,9 +255,8 @@ public class BoxController {
     // (TODO) from span get from, get to, get args, get remote calls
     private void updateEnergy (Double[] args, LocalDateTime from, LocalDateTime to) {
         // (TODO) call energy stuff, for now, cost is only about duration
-        energyAwareness.addEnergyData(new ArrayList<Double>(Arrays.asList(args)),
-                                      (double) Duration.between(from, to).toMillis());
-
+        energyAwareness.addEnergyData(args, (double) Duration.between(from, to).toMillis());
+        
 	// (TODO) how often? maybe inverse direction
         for (var address_time : address_time_list) {
             try {

@@ -20,7 +20,7 @@ public class ArgsFilterTest {
     @Test
     public void insertWithoutArgs () {
         var filter = new ArgsFilter();
-        var args = new ArrayList<Double>();
+        Double[] args = {};
         var stop = filter.isTriedEnough(args);
         assert(!stop);
     }
@@ -28,7 +28,7 @@ public class ArgsFilterTest {
     @Test
     public void firstInsert () {
         var filter = new ArgsFilter();
-        var args = new ArrayList<Double>(Arrays.asList(42.));
+        Double[] args = {42.};
         var stop = filter.isTriedEnough(args);
         assert(!stop);
     }
@@ -36,7 +36,7 @@ public class ArgsFilterTest {
     @Test
     public void aboveThresh () {
         var filter = new ArgsFilter(4);
-        var args = new ArrayList<Double>(Arrays.asList(42.));
+        Double[] args = {42.};
         var stop = filter.isTriedEnough(args);
         assert(!stop);
         stop = filter.isTriedEnough(args);

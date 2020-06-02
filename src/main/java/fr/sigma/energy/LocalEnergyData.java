@@ -31,7 +31,7 @@ public class LocalEnergyData {
     private int maxSize = 10;
     private TreeMap<String, Double> inputToCost;
     private TreeMap<Double, String> costToInput;
-    private TreeMap<String, ArrayList<Double>> inputToArgs;
+    private TreeMap<String, Double[]> inputToArgs;
     
     public LocalEnergyData (int maxSize) {
 	this.maxSize = maxSize;
@@ -54,7 +54,7 @@ public class LocalEnergyData {
         return inputToCost.values().stream().mapToDouble(e->e).sorted().toArray();
     }
 
-    public double[] getClosest(double objective) {
+    public Double[] getClosest(double objective) {
 	var min = Double.POSITIVE_INFINITY;
 	String input = null;
 	for (Map.Entry<String, Double> ic : inputToCost.entrySet()) {
@@ -64,8 +64,7 @@ public class LocalEnergyData {
 	    }
 	}
 	
-	return Objects.isNull(input) ? null :
-	    inputToArgs.get(input).stream().mapToDouble(e->e).toArray();
+	return Objects.isNull(input) ? null : inputToArgs.get(input);
     }
     
 
@@ -129,9 +128,10 @@ public class LocalEnergyData {
 
 
     
-    public void addEnergyData (ArrayList<Double> args, double cost) {
+    public void addEnergyData (Double[] argsAsArray, double cost) {
         // (TODO) cache intermediate results
         // (TODO) improve time complexity
+        var args = new ArrayList<Double>(Arrays.asList(argsAsArray));
 
         if (costToInput.containsKey(cost)) {
             // (for now, cannot have multiple values for a cost)
@@ -149,7 +149,7 @@ public class LocalEnergyData {
         if (inputToCost.size() < maxSize) {
             inputToCost.put(key, cost);
             costToInput.put(cost, key);
-	    inputToArgs.put(key, args);
+	    inputToArgs.put(key, argsAsArray);
             return ;
         }
 
@@ -216,7 +216,7 @@ public class LocalEnergyData {
             costToInput.remove(maxValue);
             inputToCost.put(key, cost);
             costToInput.put(cost, key);
-	    inputToArgs.put(key, args);
+	    inputToArgs.put(key, argsAsArray);
             
             // System.out.println(String.format("COSTS = %s",
             //                                  Arrays.toString(inputToCost.values().stream().mapToDouble(e->e).sorted().toArray())));
