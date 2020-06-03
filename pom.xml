@@ -27,13 +27,6 @@
   
   <dependencies>
     <dependency>
-      <!-- json endpoint -->
-      <groupId>com.google.code.gson</groupId>
-      <artifactId>gson</artifactId>
-      <version>2.8.6</version>
-    </dependency>
-    
-    <dependency>
       <!-- RangeSet -->
       <groupId>com.google.common</groupId>
       <artifactId>google-collect</artifactId>
@@ -44,14 +37,7 @@
       <groupId>com.github.haifengl</groupId>
       <artifactId>smile-core</artifactId>
       <version>2.3.0</version>
-    </dependency>
-    
-    <dependency>
-      <!-- (TODO) remove and use gson -->
-      <groupId>org.json</groupId>
-      <artifactId>json</artifactId>
-      <version>20190722</version>
-    </dependency>
+    </dependency>    
     <dependency>
       <!-- counting bloom filter -->
       <groupId>org.apache.hadoop</groupId>
