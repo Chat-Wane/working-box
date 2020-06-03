@@ -45,7 +45,7 @@ fourth one at 80% of its 11s workflow. The forth box execution time is
 Second part of this project is about providing energy consumption
 awareness to services. We monkey-patch a MAPE-K framework [1] in front
 of every endpoint with peer-to-peer capabilities to efficiently
-propagate energy data between related services. 
+propagate energy data between related services [4].
 
 Front-ends propose to users multiple modes of energy consumption to
 users depending on underlying services of the application. Users
@@ -73,6 +73,10 @@ computing. <i>IEEE Computer Society</i>, 2003.
 Cache: A Scalable Wide-Area Web Cache Sharing Protocol. <i>IEEE/ACM
 Transactions on Networking</i>, 2000.
 
-[3] Toshihide Ibaraki and Toshiharu Hasegawa. The Multiple-choice
+[3] Toshihide Ibaraki, and Toshiharu Hasegawa. The Multiple-choice
 knapsack problem. <i>Journal of the Operations Research Society of
 Japan</i>, 1978.
+
+[4] Anne-Marie Kermarrec, and François Taïani. Want to scale in
+centralized systems? Think P2P. <i>Journal of Internet Services and
+Applications</i>, 2015.
