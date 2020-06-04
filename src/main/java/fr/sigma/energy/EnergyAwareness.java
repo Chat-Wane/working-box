@@ -66,6 +66,7 @@ public class EnergyAwareness {
                                                                    Double[] args) {
         if (objective < 0) {
             logger.info("This box has no energy objective defined.");
+            argsFilter.tryArgs(args);
             return new Pair(getObjectives(objective), args); // default
         }
         
@@ -87,6 +88,8 @@ public class EnergyAwareness {
                 solution = args;
             }
         }
+        
+        argsFilter.tryArgs(solution);        
         return new Pair(objectives, solution);
     }
     

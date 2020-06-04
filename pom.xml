@@ -23,14 +23,22 @@
         https://repo.fusesource.com/nexus/content/repositories/releases-3rd-party/
       </url>
     </repository>
+    <repository>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <id>central</id>
+      <name>bintray</name>
+      <url>https://jcenter.bintray.com</url>
+    </repository>
   </repositories>
   
   <dependencies>
+    <!-- RangeSet -->
     <dependency>
-      <!-- RangeSet -->
-      <groupId>com.google.common</groupId>
-      <artifactId>google-collect</artifactId>
-      <version>1.0</version>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>29.0-jre</version>
     </dependency>
     <dependency>
       <!-- kernel density estimator -->
@@ -39,20 +47,10 @@
       <version>2.3.0</version>
     </dependency>    
     <dependency>
-      <!-- counting bloom filter -->
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-common</artifactId>
-      <version>3.2.1</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.slf4j</groupId>
-          <artifactId>slf4j-log4j12</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>log4j</groupId>
-          <artifactId>log4j</artifactId>
-        </exclusion>
-      </exclusions>
+      <!-- counting bloom filter -->      
+      <groupId>com.baqend</groupId>
+      <artifactId>bloom-filter</artifactId>
+      <version>1.0.7</version>
     </dependency>
     
     <dependency>
@@ -67,6 +65,7 @@
     </dependency>    
 
     <dependency>
+      <!-- DurationFormatUtils : formating date logs -->
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>3.9</version>
@@ -87,26 +86,17 @@
   <build>
     <plugins>
       <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>exec-maven-plugin</artifactId>
-        <version>1.2.1</version>
-        <configuration>
-          <mainClass>fr.sigma.App</mainClass>
-        </configuration>
-      </plugin>
-      <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <version>2.2.4.RELEASE</version>
         <configuration>
           <mainClass>fr.sigma.App</mainClass>
         </configuration>
-      </plugin>
-      
+      </plugin>      
       <plugin>
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.0.0-M4</version>
-        <configuration>
+        <configuration> <!-- see tests logs unfolded -->
           <useFile>false</useFile>
           <trimStackTrace>false</trimStackTrace>
         </configuration>

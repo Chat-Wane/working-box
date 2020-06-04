@@ -2,13 +2,13 @@ package fr.sigma.energy;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import orestes.bloomfilter.CountingBloomFilter;
+import orestes.bloomfilter.FilterBuilder;
 
-import org.apache.hadoop.util.bloom.CountingBloomFilter;
-import org.apache.hadoop.util.bloom.Key;
-import org.apache.hadoop.util.hash.Hash;
 import java.nio.ByteBuffer;
 import java.io.ByteArrayOutputStream;
-import java.util.ArrayList;
+
+import java.util.Arrays;
 
 
 
@@ -16,28 +16,29 @@ public class ArgsFilter {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
 
-    // /!\ This bloom filter caps its count to 15. If we need higher values, we
-    // should switch to another implem' of counting bloom filter.
-    private CountingBloomFilter counting;
-
+    // <String> because Double[] does not work well
+    private CountingBloomFilter<String> counting; 
     private int threshold;
     
     public ArgsFilter () {
-        // Default 100 buckets, 3 hash functions
-        counting = new CountingBloomFilter(100, 3, Hash.JENKINS_HASH);
+        counting = new FilterBuilder(100, 0.01).buildCountingBloomFilter();
         threshold = 14;
-	logger.info(String.format("Initialized filter with a threshold of %s", threshold));
+	logger.info(String.format("Initialized filter when |args| > %s", threshold)
+                    .concat(String.format("; |distinct args| ~= %s.", 100)));
     }
     
     public ArgsFilter (int threshold) {
-        // Default 100 buckets, 3 hash functions
-        counting = new CountingBloomFilter(100, 3, Hash.JENKINS_HASH);
+        counting = new FilterBuilder(100, 0.01).buildCountingBloomFilter();
         this.threshold = threshold;
-	logger.info(String.format("Initialized filter with a threshold of %s", threshold));
+        logger.info(String.format("Initialized filter when |args| > %s", threshold)
+                    .concat(String.format("; |distinct args| ~= %s.", 100)));       
     }
-
+    
     public ArgsFilter (int threshold, int numberOfValues) {
-        // (TODO) smarter allocation depending on parameters
+        counting = new FilterBuilder(numberOfValues, 0.01).buildCountingBloomFilter();
+        this.threshold = threshold;
+        logger.info(String.format("Initialized filter when |args| > %s", threshold)
+                    .concat(String.format("; |distinct args| ~= %s.", numberOfValues)));
     }
     
     public int getThreshold () {
@@ -51,35 +52,15 @@ public class ArgsFilter {
      * @returns True if the arguments should be self-tuned, false otherwise.
      */
     public boolean isTriedEnough (Double[] args) {
-        var key = new Key(toBytes(args));
-        int count = counting.approximateCount(key);
-        logger.info(String.format("Args have been seen roughly %s times before.",
+        long count = counting.getEstimatedCount(Arrays.toString(args));
+        logger.info(String.format("Args %s have been seen roughly %s times before.",
+                                  Arrays.toString(args),
                                   count));
-        // if (count <= threshold)
-        counting.add(key); // add the key anyway
         return count >= threshold;
     }
-
-
     
-    private byte[] toBytes (Double[] args) {
-        if (args.length == 0)
-            return new byte[1];
-        
-        byte[] keyBytes = new byte[0];        
-        for (int i = 0; i < args.length; ++i) {
-            var arg = args[i];
-                
-            byte[] bytes = ByteBuffer.allocate(8).putDouble(arg).array();
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            try {
-                outputStream.write(keyBytes);
-                outputStream.write(bytes);
-                keyBytes = outputStream.toByteArray();
-            } catch (Exception e){
-                logger.warn("Could not write args as byte. Filter may not work.");
-            }
-        }
-        return keyBytes;
+    public void tryArgs(Double[] args) {
+        counting.add(Arrays.toString(args));
     }
+
 }

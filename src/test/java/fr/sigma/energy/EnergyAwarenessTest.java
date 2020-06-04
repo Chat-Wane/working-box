@@ -233,5 +233,17 @@ public class EnergyAwarenessTest {
 	assertEquals(-1, (double) objectives.get("waf"));
 	assertEquals(-1, (double) objectives.get("meow"));	
     }
+
+
+
+    @Test
+    public void testSimpleCallToFunc () {
+        // |local data| = 10, |filter threshold| = 4
+        var ea = new EnergyAwareness("meow", 10, 4);
+        Double[] args = {10., 0.};
+        var os = ea.newFunctionCall(1000, args);
+        // (TODO) real workflow
+    }
+
     
 }

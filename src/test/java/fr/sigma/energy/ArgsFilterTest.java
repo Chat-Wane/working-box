@@ -39,12 +39,16 @@ public class ArgsFilterTest {
         Double[] args = {42.};
         var stop = filter.isTriedEnough(args);
         assert(!stop);
+        filter.tryArgs(args);      
         stop = filter.isTriedEnough(args);
         assert(!stop);
+        filter.tryArgs(args);
         stop = filter.isTriedEnough(args);
         assert(!stop);
+        filter.tryArgs(args);
         stop = filter.isTriedEnough(args);
         assert(!stop);
+        filter.tryArgs(args);
         stop = filter.isTriedEnough(args);
         assert(stop);
     }
