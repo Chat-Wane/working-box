@@ -113,7 +113,7 @@ public class EnergyAwareness {
      * Combine local intervals with ones got from remote services to
      * create a new interval. It should be sent to parent service.
      */
-    public TreeRangeSet<Double> combineIntervals() {
+    public TreeRangeSet<Double> combineIntervals() {        
         var result = localEnergyData.getIntervals();
         for (var interval : funcToIntervals.values())
             result = _combination(result, interval);        
