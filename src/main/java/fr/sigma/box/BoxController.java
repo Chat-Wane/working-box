@@ -56,8 +56,8 @@ public class BoxController {
     private List<String> remote_calls;
     private ArrayList<Pair<String, Integer>> address_time_list;
 
-    @Value("${box.energy.call.url}")
-    private String energy_call_url; // (TODO) use this
+    @Value("${box.energy.call.url:''}")
+    private String energy_call_url; // (TODO) use this, i.e., with smartwatts
     @Value("${box.energy.threshold.before.self.tuning.args:14}")
     private Integer energy_threshold_before_self_tuning_args;
     @Value("${box.energy.max.local.data:20}")
@@ -101,16 +101,16 @@ public class BoxController {
         
         address_time_list = new ArrayList<>();
         var names = new ArrayList<String>();
-        for (int i = 0; i < remote_calls.size(); ++i) {
-            // format <address to call>@<percent before calling>
-            String[] address_time = remote_calls.get(i).split("@");
-            assert (address_time.length == 2);
-            var atProgress = Integer.parseInt(address_time[1]);
-            assert (atProgress >= 0) && (atProgress <= 100);
-            address_time_list.add(new Pair(address_time[0], atProgress));
-            names.add(address_time[0]); // (TODO) include name of function
-        }
-        address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
+	for (int i = 0; i < remote_calls.size(); ++i) {
+	    // format <address to call>@<percent before calling>
+	    String[] address_time = remote_calls.get(i).split("@");
+	    if (address_time.length == 2) {
+		var atProgress = Integer.parseInt(address_time[1]);
+		address_time_list.add(new Pair(address_time[0], atProgress));
+		names.add(address_time[0]); // (TODO) include name of function
+	    }
+	}
+	address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
 
 	var nbDifferentInputMonitored = (int) (energy_max_local_data *
 					       energy_factor_localdatakept_differentdatamonitored);
