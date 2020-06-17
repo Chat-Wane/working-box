@@ -32,6 +32,8 @@ public class LocalEnergyData {
     private TreeMap<String, Double> inputToCost;
     private TreeMap<Double, String> costToInput;
     private TreeMap<String, Double[]> inputToArgs;
+
+    private boolean isLastInputKept;
     
     public LocalEnergyData (int maxSize) {
 	this.maxSize = maxSize;
@@ -42,17 +44,14 @@ public class LocalEnergyData {
 				  maxSize));
     }
 
-    public int getMaxSize() {
-        return maxSize;
-    }
+    public int getMaxSize() { return maxSize; }
+    public boolean getIsLastInputKept() { return isLastInputKept; }
+    public int size() { return inputToCost.size(); }
 
-    public int size() {
-        return inputToCost.size();
-    }
-    
     public double[] getCosts() {
         return inputToCost.values().stream().mapToDouble(e->e).sorted().toArray();
     }
+
 
     public Double[] getClosest(double objective) {
 	var min = Double.POSITIVE_INFINITY;
@@ -136,6 +135,7 @@ public class LocalEnergyData {
         if (costToInput.containsKey(cost)) {
             // (for now, cannot have multiple values for a cost)
             // (TODO) maybe change this
+	    isLastInputKept = false;
             return ;
         }
         
@@ -150,6 +150,7 @@ public class LocalEnergyData {
             inputToCost.put(key, cost);
             costToInput.put(cost, key);
 	    inputToArgs.put(key, argsAsArray);
+	    isLastInputKept = true;
             return ;
         }
 
@@ -187,10 +188,6 @@ public class LocalEnergyData {
             }
         }
 
-        // System.out.println(String.format("cost = %s ; density = %s",
-        //                                  costAsDouble[maxIndex],
-        //                                  densityAsDouble[maxIndex]));
-
         // replace the highest by the new data and see if it is better
         costAsDouble[maxIndex] = cost;
         var kernelChanged = new KernelDensity(costAsDouble);
@@ -209,17 +206,16 @@ public class LocalEnergyData {
             .mapToDouble(e->e).average().getAsDouble();
         double[] densityAsDoubleChanged = densityAsStreamChangedSupplier.get().toArray();
 
-        // System.out.println(String.format("%s -> %s", average, averageChanged));
-        if (average > averageChanged) { // Replace
+        logger.info(String.format("Average of kernel density estimators old: %s vs new: %s.",
+				  average, averageChanged));
+	isLastInputKept = average > averageChanged;
+        if (isLastInputKept) { // Replace peaking value by new flatter value
             inputToCost.remove(costToInput.get(maxValue));
 	    inputToArgs.remove(costToInput.get(maxValue));
             costToInput.remove(maxValue);
             inputToCost.put(key, cost);
             costToInput.put(cost, key);
 	    inputToArgs.put(key, argsAsArray);
-            
-            // System.out.println(String.format("COSTS = %s",
-            //                                  Arrays.toString(inputToCost.values().stream().mapToDouble(e->e).sorted().toArray())));
         }
     }
 }

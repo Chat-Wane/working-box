@@ -34,7 +34,7 @@ public class EnergyAwareness {
     private ArgsFilter argsFilter;
     
     private final String name;
-    
+
     public EnergyAwareness(String name, int maxSizeOfLocalData, int thresholdFilter) {
         funcToIntervals = new TreeMap();
         localEnergyData = new LocalEnergyData(maxSizeOfLocalData);
@@ -42,17 +42,17 @@ public class EnergyAwareness {
         this.name = name;
     }
 
-    public TreeMap<String, TreeRangeSet<Double>> getFuncToIntervals() {
-        return funcToIntervals;
+    public EnergyAwareness(String name, int maxSizeOfLocalData,
+			   int nbDifferentInput, int thresholdFilter) {
+        funcToIntervals = new TreeMap();
+        localEnergyData = new LocalEnergyData(maxSizeOfLocalData);
+        argsFilter = new ArgsFilter(nbDifferentInput, thresholdFilter);
+        this.name = name;
     }
 
-    public LocalEnergyData getLocalEnergyData() {
-        return localEnergyData;
-    }
-
-    public String getName() {
-        return name;
-    }
+    public TreeMap<String, TreeRangeSet<Double>> getFuncToIntervals() { return funcToIntervals;}
+    public LocalEnergyData getLocalEnergyData() { return localEnergyData; }
+    public String getName() { return name; }
 
 
 

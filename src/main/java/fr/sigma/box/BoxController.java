@@ -36,7 +36,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import com.google.common.primitives.Doubles;
-
+import com.google.common.collect.ImmutableMap;
 
 
 /**
@@ -47,7 +47,6 @@ import com.google.common.primitives.Doubles;
 public class BoxController {
 
     private Logger logger = LoggerFactory.getLogger(getClass());
-    public static final StringTag PARAMETERS = new StringTag("parameters");
     
     @Value("#{'${box.polynomes.coefficients}'.split('-')}")
     private List<String> coefficients;
@@ -63,6 +62,8 @@ public class BoxController {
     private Integer energy_threshold_before_self_tuning_args;
     @Value("${box.energy.max.local.data:20}")
     private Integer energy_max_local_data;
+    @Value("${box.energy.factor.localdatakept.differentdatamonitored:10.0}")
+    private Double energy_factor_localdatakept_differentdatamonitored;
     private EnergyAwareness energyAwareness;
 
     @Value("${spring.application.name}")
@@ -72,9 +73,14 @@ public class BoxController {
     private Tracer tracer;
     private RestTemplate restTemplate;
 
+
+    
     public BoxController() {}
 
     private void init() {
+	Span currentSpan = tracer.scopeManager().activeSpan();
+	currentSpan.log(ImmutableMap.of("event", "startInit"));
+	
         restTemplate = new RestTemplate();
         
         polynomes = new Polynomes();
@@ -106,9 +112,15 @@ public class BoxController {
         }
         address_time_list.sort((e1, e2) -> e1.second.compareTo(e2.second));
 
-        energyAwareness = new EnergyAwareness(service_name, energy_max_local_data,
+	var nbDifferentInputMonitored = (int) (energy_max_local_data *
+					       energy_factor_localdatakept_differentdatamonitored);
+        energyAwareness = new EnergyAwareness(service_name,
+					      energy_max_local_data,
+					      nbDifferentInputMonitored,
                                               energy_threshold_before_self_tuning_args);
         energyAwareness.updateRemotes(names);
+
+	currentSpan.log(ImmutableMap.of("event", "stopInit"));
     }
 
     /**
@@ -120,7 +132,7 @@ public class BoxController {
     @ConditionalOnExpression("${box.energy.peertopeer.enable:false}")
     @RequestMapping("/getEnergyIntervals")
     private ResponseEntity<String> getEnergyIntervals() {
-        if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unuglyfy
+        if (Objects.isNull(polynomes)) { init(); }
 	var converter = RangeSetConverter.rangeSetConverter(Doubles.stringConverter().reverse());
 	var stringOfRanges = converter.convert(energyAwareness.combineIntervals()); // (TODO) as json
         return new ResponseEntity<String>(stringOfRanges, HttpStatus.OK);
@@ -138,12 +150,13 @@ public class BoxController {
     @RequestMapping("/*")
     private ResponseEntity<String> handle(Double[] args,
                                           @RequestHeader Map<String, String> headers) {
-        var start = LocalDateTime.now();
-        var duration = Duration.between(start, LocalDateTime.now());
-        Span currentSpan = tracer.scopeManager().activeSpan();
-        
+	Span currentSpan = tracer.scopeManager().activeSpan();
+	
         // #A initialize objects and reporting 
-        if (Objects.isNull(polynomes)) { init(); } // lazy loading (TODO) unuglyfy
+        if (Objects.isNull(polynomes)) { init(); }
+
+	var startEnergyAwareness = LocalDateTime.now();
+	currentSpan.log(ImmutableMap.of("event", "startEnergyAwareness"));
                 
         // keep important parameters of this box
         Double[] copyArgs = new Double[args.length];
@@ -159,19 +172,35 @@ public class BoxController {
         TreeMap<String, Double> objectives = null;
         Double[] solution = copyArgs;
         if (headers.keySet().contains("objective")) {
-            var objective = (int) Double.parseDouble(headers.get("objective"));
+            var objective = Double.parseDouble(headers.get("objective"));
             var os = energyAwareness.newFunctionCall(objective, copyArgs);
             objectives = os.first;
             solution = os.second;
+	    currentSpan.setTag("objective", objective);
+	    currentSpan.setTag("objectives", String.format("%s", objectives));
         }
-        
+
+	var endEnergyAwareness = LocalDateTime.now();
+	logger.info(String.format("Energy awareness took %s ms to process.",
+				  Duration.between(startEnergyAwareness,
+						   endEnergyAwareness).toMillis()));
+	currentSpan.log(ImmutableMap.of("event", "endEnergyAwareness"));
+	
 
+
+	var start = LocalDateTime.now();
+        var duration = Duration.between(start, LocalDateTime.now());
 
         // #C Main loop for different calls to remote services
         logger.info(String.format("This box executes with args: %s", Arrays.toString(solution)));
+	currentSpan.setTag("parameters", Arrays.toString(args));
+	currentSpan.setTag("solution", Arrays.toString(solution));
+
+	
+	
         var polyResult = polynomes.get(solution);
         var limit = polyResult > 0 ? Duration.ofMillis(polyResult) : Duration.ZERO;  
-        logger.info(String.format("This box must run during %s and call %s other boxes",
+        logger.info(String.format("This box must run during %s and call %s other boxes.",
                                   DurationFormatUtils.formatDurationHMS(limit.toMillis()),
                                   address_time_list.size()));
         
@@ -198,8 +227,9 @@ public class BoxController {
 
         // #D monitor and update local energy        
 	updateEnergy(solution, start, LocalDateTime.now());
-        reportEnergy(currentSpan, solution);
-                                
+	currentSpan.setTag("isLastInputKept",
+			   energyAwareness.getLocalEnergyData().getIsLastInputKept());
+
         return new ResponseEntity<String>(":)\n", HttpStatus.OK);
     }
     
@@ -257,7 +287,7 @@ public class BoxController {
         // (TODO) call energy stuff, for now, cost is only about duration
         energyAwareness.addEnergyData(args, (double) Duration.between(from, to).toMillis());
         
-	// (TODO) how often? maybe inverse direction0
+	// (TODO) how often? maybe inverse direction
         for (var address_time : address_time_list) {
             try {
                 var stringRangeSet = restTemplate // (TODO) as json
@@ -273,15 +303,10 @@ public class BoxController {
             } catch (Exception e) {
                 logger.warn(String.format("Error while calling %s to get energy costs.",
 					  address_time.first));
+		// (TODO) or remove energy local energy data ? 
                 // (TODO) can fall down to remote dedicated service.
             }
         }
     }
 
-
-
-    private void reportEnergy (Span currentSpan, Double[] args) {
-        // (TODO) different type of variables Read/Write
-        currentSpan.setTag(PARAMETERS, Arrays.toString(args));      
-    }
 }

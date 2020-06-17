@@ -34,7 +34,8 @@ public class ArgsFilter {
                     .concat(String.format("; |distinct args| ~= %s.", 100)));       
     }
     
-    public ArgsFilter (int threshold, int numberOfValues) {
+    public ArgsFilter (int numberOfValues, int threshold) {
+	// (TODO) maybe configure accuracy ? 
         counting = new FilterBuilder(numberOfValues, 0.01).buildCountingBloomFilter();
         this.threshold = threshold;
         logger.info(String.format("Initialized filter when |args| > %s", threshold)
