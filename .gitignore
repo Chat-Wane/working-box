@@ -1,3 +1,6 @@
+.idea/
+*.eps
+
 .DS_Store
 working-box_latest.tar
 .#.*

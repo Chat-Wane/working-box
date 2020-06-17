@@ -12,12 +12,15 @@ import java.util.Collections;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import org.apache.commons.lang3.tuple.Triple;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-    
+
+
 
 
 /**
@@ -32,7 +35,6 @@ public class EnergyAwareness {
     private TreeMap<String, TreeRangeSet<Double>> funcToIntervals;
     private LocalEnergyData localEnergyData;
     private ArgsFilter argsFilter;
-    
     private final String name;
 
     public EnergyAwareness(String name, int maxSizeOfLocalData, int thresholdFilter) {
@@ -62,12 +64,14 @@ public class EnergyAwareness {
      * @param args the args that matter to the local function
      * @return a pair <objectives , self-tuned args>
      */
-    public Pair<TreeMap<String, Double>, Double[]> newFunctionCall(double objective,
-                                                                   Double[] args) {
+    public Triple<TreeMap<String, Double>, Double[], Boolean> newFunctionCall(double objective,
+									      Double[] args) {
+	boolean isLastInputRewritten = false;
+	
         if (objective < 0) {
             logger.info("This box has no energy objective defined.");
             argsFilter.tryArgs(args);
-            return new Pair(getObjectives(objective), args); // default
+            return new ImmutableTriple(getObjectives(objective), args, false); // default
         }
         
         logger.info(String.format("This box has an energy consumption objective of %s.",
@@ -84,13 +88,14 @@ public class EnergyAwareness {
                 logger.info(String.format("Rewrites local arguments: %s -> %s.",
                                           Arrays.toString(args),
                                           Arrays.toString(solution)));
+		isLastInputRewritten = true;
             } else {
                 solution = args;
             }
         }
         
         argsFilter.tryArgs(solution);        
-        return new Pair(objectives, solution);
+        return new ImmutableTriple(objectives, solution, isLastInputRewritten);
     }
     
 

@@ -174,8 +174,9 @@ public class BoxController {
         if (headers.keySet().contains("objective")) {
             var objective = Double.parseDouble(headers.get("objective"));
             var os = energyAwareness.newFunctionCall(objective, copyArgs);
-            objectives = os.first;
-            solution = os.second;
+            objectives = os.getLeft();
+            solution = os.getMiddle();
+	    currentSpan.setTag("isLastInputRewritten", os.getRight());
 	    currentSpan.setTag("objective", objective);
 	    currentSpan.setTag("objectives", String.format("%s", objectives));
         }
