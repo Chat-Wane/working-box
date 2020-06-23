@@ -195,9 +195,7 @@ public class BoxController {
         // #C Main loop for different calls to remote services
         logger.info(String.format("This box executes with args: %s", Arrays.toString(solution)));
 	currentSpan.setTag("parameters", Arrays.toString(args));
-	currentSpan.setTag("solution", Arrays.toString(solution));
-
-	
+	currentSpan.setTag("solution", Arrays.toString(solution));	
 	
         var polyResult = polynomes.get(solution);
         var limit = polyResult > 0 ? Duration.ofMillis(polyResult) : Duration.ZERO;  
