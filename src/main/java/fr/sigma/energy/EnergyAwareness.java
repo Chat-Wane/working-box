@@ -86,20 +86,21 @@ public class EnergyAwareness {
 	    // (TODO) use local data to remove its own cost of the solution,
 	    // even if not precise
 	    objectives = getObjectives(objective, true);
-	    logger.info(String.format("Distributes energy objective as: %s.", objectives));
 	} else {
 	    // #2 divides objective between itself and remotes
 	    objectives = getObjectives(objective, false);
             solution = solveObjective(objectives.get(name));
 	    isLastInputRewritten = !Objects.isNull(solution);
-            if (isLastInputRewritten) {
-                logger.info(String.format("Rewrites local arguments: %s -> %s.",
-                                          Arrays.toString(args),
-                                          Arrays.toString(solution)));
-            } else {
-                solution = args;
-            }
         }
+
+	logger.info(String.format("Distributes energy objective as: %s.", objectives));	
+	if (isLastInputRewritten)
+	    logger.info(String.format("Rewrites local arguments: %s -> %s.",
+				      Arrays.toString(args),
+				      Arrays.toString(solution)));
+	else
+	    solution = args;
+	
 	
         argsFilter.tryArgs(solution);        
         return new ImmutableTriple(objectives, solution, isLastInputRewritten);
@@ -119,6 +120,10 @@ public class EnergyAwareness {
     public void updateRemote(String func, TreeRangeSet<Double> costs) {
         // (TODO) could be important to handle version of data
         funcToIntervals.put(func, costs);
+    }
+
+    public void resetRemote(String func) {
+	funcToIntervals.put(func, TreeRangeSet.create());
     }
     
     /**

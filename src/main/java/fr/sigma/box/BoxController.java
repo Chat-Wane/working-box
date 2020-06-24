@@ -290,6 +290,7 @@ public class BoxController {
 	// (TODO) how often? maybe inverse direction
         for (var address_time : address_time_list) {
             try {
+		// #A update remote service energy data
                 var stringRangeSet = restTemplate // (TODO) as json
                     .getForEntity(String.format("%s/getEnergyIntervals",
                                                 address_time.first),
@@ -301,10 +302,11 @@ public class BoxController {
 					  costs.asRanges().size(), address_time.first));
                 energyAwareness.updateRemote(address_time.first, costs);
             } catch (Exception e) {
-                logger.warn(String.format("Error while calling %s to get energy costs.",
+		// #B can't reach remote service, considered dead until further news
+                logger.warn(String.format("Error while calling %s to get energy costs. Resetting.",
 					  address_time.first));
-		// (TODO) or remove energy local energy data ? 
-                // (TODO) can fall down to remote dedicated service.
+		energyAwareness.resetRemote(address_time.first);
+                // (TODO) can fall down to remote dedicated service if there is.
             }
         }
 
