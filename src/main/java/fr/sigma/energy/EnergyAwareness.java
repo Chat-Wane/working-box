@@ -20,7 +20,6 @@ import com.google.common.collect.TreeRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-
 
 
 /**
@@ -36,6 +35,8 @@ public class EnergyAwareness {
     private LocalEnergyData localEnergyData;
     private ArgsFilter argsFilter;
     private final String name;
+
+    private int maxObjective = 1000;
 
     public EnergyAwareness(String name, int maxSizeOfLocalData, int thresholdFilter) {
         funcToIntervals = new TreeMap();
@@ -64,14 +65,13 @@ public class EnergyAwareness {
      * @param args the args that matter to the local function
      * @return a pair <objectives , self-tuned args>
      */
-    public Triple<TreeMap<String, Double>, Double[], Boolean> newFunctionCall(double objective,
-									      Double[] args) {
-	boolean isLastInputRewritten = false;
-	
+    public Triple<TreeMap<String, Double>, Double[], Boolean>
+	newFunctionCall(double objective, Double[] args) {
+		
         if (objective < 0) {
             logger.info("This box has no energy objective defined.");
             argsFilter.tryArgs(args);
-            return new ImmutableTriple(getObjectives(objective), args, false); // default
+            return new ImmutableTriple(getObjectives(objective, false), args, false); // default
         }
         
         logger.info(String.format("This box has an energy consumption objective of %s.",
@@ -79,36 +79,43 @@ public class EnergyAwareness {
         
         TreeMap<String, Double> objectives = null;
         Double[] solution = args;
-        if (argsFilter.isTriedEnough(args)) {
-            objectives = getObjectives(objective);
-            logger.info(String.format("Distributes energy objective as: %s.", objectives));
-            
+	boolean isLastInputRewritten = false;
+	
+	if (!argsFilter.isTriedEnough(args)) {
+	    // #1 not enough data to be part of the computation
+	    // (TODO) use local data to remove its own cost of the solution,
+	    // even if not precise
+	    objectives = getObjectives(objective, true);
+	    logger.info(String.format("Distributes energy objective as: %s.", objectives));
+	} else {
+	    // #2 divides objective between itself and remotes
+	    objectives = getObjectives(objective, false);
             solution = solveObjective(objectives.get(name));
-            if (!Objects.isNull(solution)) {
+	    isLastInputRewritten = !Objects.isNull(solution);
+            if (isLastInputRewritten) {
                 logger.info(String.format("Rewrites local arguments: %s -> %s.",
                                           Arrays.toString(args),
                                           Arrays.toString(solution)));
-		isLastInputRewritten = true;
             } else {
                 solution = args;
             }
         }
-        
+	
         argsFilter.tryArgs(solution);        
         return new ImmutableTriple(objectives, solution, isLastInputRewritten);
     }
     
 
     
-    public void addEnergyData(Double[] args, double cost) {
-        localEnergyData.addEnergyData(args, cost);
+    public boolean addEnergyData(Double[] args, double cost) {
+        return localEnergyData.addEnergyData(args, cost);
     }
-
+    
     public void updateRemotes(ArrayList<String> names) {
         for (var func : names)
             funcToIntervals.put(func, TreeRangeSet.create());
     }
-
+    
     public void updateRemote(String func, TreeRangeSet<Double> costs) {
         // (TODO) could be important to handle version of data
         funcToIntervals.put(func, costs);
@@ -156,40 +163,39 @@ public class EnergyAwareness {
         return result;
     }
 
-    public TreeMap<String, Double> getObjectives(double objective) {
-        // Check if has enough data to create objectives, otherwise, default
-        // values are returned.
-        boolean goDefault = localEnergyData.getIntervals().isEmpty() || objective < 0;	
-        for (var interval : funcToIntervals.values()) {
-	    if (!goDefault && interval.isEmpty())
-                goDefault = true;
-	}	
-	var defaultResult = new TreeMap<String, Double>();
-	defaultResult.put(name, -1.);
-	for (var func : funcToIntervals.keySet())
-	    defaultResult.put(func, -1.);
+    /**
+     * Get the objectives of (i) ourself and (ii) other called remote services.
+     * @param objective: the objective to divide.
+     * @param withoutMe: do we have enough data to get an objective for ourself.
+     * @return a map of service_name to its assignated objective.
+     **/
+    public TreeMap<String, Double> getObjectives(double objective, boolean withoutMe) {
+	var localIntervals = localEnergyData.getIntervals();
 
-        if (goDefault) 
+	// #A objective is not set or,
+	// we don't even have our own energy data, how could we have others ?
+	if (localIntervals.isEmpty() || objective < 0) {
+	    var defaultResult = new TreeMap<String, Double>();
+	    defaultResult.put(name, -1.);
+	    for (var func : funcToIntervals.keySet())
+		defaultResult.put(func, -1.);	    
             return defaultResult;
-
-	// Otherwiiiiiiiiise, process objectives of children and self.
+	}
 	
-        double ratio = 1000. / objective; // (TODO) configurable scaling
+	// #B Otherwiiiiiiiiise, process objectives of children and self.
+        double ratio = (double) maxObjective / objective; // (TODO) configurable scaling
         var groupToFunc = new TreeMap<Integer, String>();
-
         var mckpElements = new ArrayList<MCKPElement>();
 
-        var localIntervals = localEnergyData.getIntervals();
-        groupToFunc.put(0, name);
-        int groupIndex = 0;
-        for (Range<Double> interval : localIntervals.asRanges())
-            mckpElements.add(new MCKPElement((int)(interval.lowerEndpoint()*ratio),
-                                             (int)(interval.lowerEndpoint()*ratio),
-                                             groupIndex));
-        
-        ++groupIndex;
-        
-        for (Map.Entry<String, TreeRangeSet<Double>> kv : funcToIntervals.entrySet()) {
+	// format the data to go through mckp solver
+	var funcToIntervalsCopy = new TreeMap<String, TreeRangeSet<Double>>(funcToIntervals);
+	if (withoutMe)
+	    funcToIntervalsCopy.put(name, TreeRangeSet.create());
+	else
+	    funcToIntervalsCopy.put(name, localIntervals);
+
+	int groupIndex = 0;
+        for (Map.Entry<String, TreeRangeSet<Double>> kv : funcToIntervalsCopy.entrySet()) {
             for (var intervals : kv.getValue().asRanges())
                 mckpElements.add(new MCKPElement((int)(intervals.lowerEndpoint()*ratio),
                                                  (int)(intervals.lowerEndpoint()*ratio),
@@ -198,19 +204,15 @@ public class EnergyAwareness {
             ++groupIndex;
         }
 
-        var mckp = new MCKP(1000, mckpElements); // (TODO) cache mckp
-        var solution = mckp.solve(1000);
+        var mckp = new MCKP(maxObjective, mckpElements); // (TODO) cache mckp
+        var solution = mckp.solve(maxObjective);
 
-	if (solution.isEmpty())
-	    return defaultResult;
-	
         var funcToInterval = new TreeMap<String, Range>();
-        for (int i = 0; i < solution.size(); ++i) {            
+        for (int i = 0; i < solution.size(); ++i) {
             double value = solution.get(i).weight / ratio;
             String func = groupToFunc.get(solution.get(i).group);
-            TreeRangeSet<Double> interval = (func.equals(name)) ?
-                localIntervals : funcToIntervals.get(func);
-                
+            TreeRangeSet<Double> interval = funcToIntervalsCopy.get(func);
+	    
             double distance = Double.MAX_VALUE;
             Range<Double> closestRange = null;
             for (Range<Double> range : interval.asRanges()) {
@@ -219,11 +221,17 @@ public class EnergyAwareness {
                     closestRange = range;
                 }
             }
-            
+	    
             funcToInterval.put(func, closestRange);
         }
-        
-        return getObjectivesFromInterval(objective, funcToInterval);
+	
+	var objectives = getObjectivesFromInterval(objective, funcToInterval);
+
+	for (var func : funcToIntervalsCopy.keySet()) // fill gaps of missing data
+	    if (!objectives.containsKey(func))
+		objectives.put(func, -1.);
+	
+	return objectives;
     }
 
     /**
@@ -242,7 +250,7 @@ public class EnergyAwareness {
             return results;
         }
         
-        var objectiveToDistribute = objective;        
+        var objectiveToDistribute = objective;
         var funcToRange = new ArrayList<Pair<String, Double>>();
         for (Map.Entry<String, Range> kv : funcToInterval.entrySet()) {
             Range<Double> span = kv.getValue();            

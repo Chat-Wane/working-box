@@ -3,6 +3,7 @@ package fr.sigma.energy;
 import java.util.TreeMap;
 import java.util.ArrayList;
 
+import org.apache.commons.lang3.tuple.Triple;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
@@ -150,20 +151,20 @@ public class EnergyAwarenessTest {
         TreeRangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
         remoteRangeSet1.add(Range.closed(12., 12.5));
         ea.updateRemote("woof", remoteRangeSet1);
-        var objectives = ea.getObjectives(28);
+        var objectives = ea.getObjectives(28, false);
         // miss local
         assertEquals(-1., (double) objectives.get("woof"));
         assertEquals(-1., (double) objectives.get("meow"));
 
         // all seems good
         ea.addEnergyData(new Double[0], 0.);
-        objectives = ea.getObjectives(28);
+        objectives = ea.getObjectives(28, false);
         assertEquals(0., (double) objectives.get("meow"));
         assertEquals(12.5, (double) objectives.get("woof"));
         
         // miss new remote
         ea.updateRemote("waf", TreeRangeSet.create());
-        objectives = ea.getObjectives(28);
+        objectives = ea.getObjectives(28, false);
         assertEquals(-1., (double) objectives.get("meow"));
         assertEquals(-1., (double) objectives.get("woof"));
         assertEquals(-1., (double) objectives.get("waf"));        
@@ -181,7 +182,7 @@ public class EnergyAwarenessTest {
         remoteRangeSet2.add(Range.closed(14., 16.));
         ea.updateRemote("waf", remoteRangeSet2);
         
-        var objectives = ea.getObjectives(28);
+        var objectives = ea.getObjectives(28, false);
         assertEquals(12.5, (double) objectives.get("woof"));
         assertEquals(15.5, (double) objectives.get("waf"));
     }
@@ -200,10 +201,10 @@ public class EnergyAwarenessTest {
         remoteRangeSet2.add(Range.closed(80., 110.));       
         ea.updateRemote("waf", remoteRangeSet2);
         
-        var objectives = ea.getObjectives(100.);
+        var objectives = ea.getObjectives(100., false);
         assertEquals(15, (double) objectives.get("woof")); // 10+5
         assertEquals(85, (double) objectives.get("waf")); // 80+5
-        var objectives2 = ea.getObjectives(85.);
+        var objectives2 = ea.getObjectives(85., false);
         assertEquals(35, (double) objectives2.get("woof")); // 25+10
         assertEquals(50, (double) objectives2.get("waf")); // 40+10
     }
@@ -223,12 +224,12 @@ public class EnergyAwarenessTest {
         remoteRangeSet2.add(Range.closed(80., 110.));       
         ea.updateRemote("waf", remoteRangeSet2);
         
-	var objectives = ea.getObjectives(5.); // no service can run
+	var objectives = ea.getObjectives(5., false); // no service can run
 	assertEquals(-1, (double) objectives.get("woof"));
 	assertEquals(-1, (double) objectives.get("waf"));
 	assertEquals(-1, (double) objectives.get("meow"));
 
-	var objectives2 = ea.getObjectives(11.); // second service can't run
+	var objectives2 = ea.getObjectives(11., false); // second service can't run
 	assertEquals(-1, (double) objectives.get("woof"));
 	assertEquals(-1, (double) objectives.get("waf"));
 	assertEquals(-1, (double) objectives.get("meow"));	
@@ -237,11 +238,37 @@ public class EnergyAwarenessTest {
 
 
     @Test
+    public void testWithoutFullData () {
+	var ea = new EnergyAwareness("meow", 10, 4);
+	ea.addEnergyData(new Double[0], 10.);
+	ArrayList<String> remotes = new ArrayList();
+	remotes.add("Simon");
+	remotes.add("Thomas");
+	ea.updateRemotes(remotes);
+	TreeRangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
+        remoteRangeSet2.add(Range.closed(40., 60.));
+        remoteRangeSet2.add(Range.closed(80., 110.));
+
+	ea.updateRemote("Thomas", remoteRangeSet2);
+	Double[] args = {10., 0.};
+	Triple<TreeMap<String, Double>, Double[], Boolean> os = ea.newFunctionCall(1000, args);
+	os = ea.newFunctionCall(1000, args);
+	os = ea.newFunctionCall(1000, args);
+	os = ea.newFunctionCall(1000, args);
+	os = ea.newFunctionCall(1000, args);
+	var objectives = os.getLeft();
+	var solution = os.getMiddle();
+
+	assertEquals(2, objectives.size());	
+    }
+				       
+    
+    @Test
     public void testSimpleCallToFunc () {
         // |local data| = 10, |filter threshold| = 4
         var ea = new EnergyAwareness("meow", 10, 4);
         Double[] args = {10., 0.};
-        var os = ea.newFunctionCall(1000, args);
+        var os = ea.newFunctionCall(1000, args);	
         // (TODO) real workflow
     }
 

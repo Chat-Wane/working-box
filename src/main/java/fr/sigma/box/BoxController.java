@@ -37,6 +37,7 @@ import java.util.stream.Collectors;
 import org.apache.commons.lang3.time.DurationFormatUtils;
 import com.google.common.primitives.Doubles;
 import com.google.common.collect.ImmutableMap;
+
 
 
 /**
@@ -225,9 +226,8 @@ public class BoxController {
 
 
         // #D monitor and update local energy        
-	updateEnergy(solution, start, LocalDateTime.now());
-	currentSpan.setTag("isLastInputKept",
-			   energyAwareness.getLocalEnergyData().getIsLastInputKept());
+	var lastLocalInputKept = updateEnergy(solution, start, LocalDateTime.now());
+	currentSpan.setTag("isLastInputKept", lastLocalInputKept);
 
         return new ResponseEntity<String>(":)\n", HttpStatus.OK);
     }
@@ -282,10 +282,11 @@ public class BoxController {
 
 
     // (TODO) from span get from, get to, get args, get remote calls
-    private void updateEnergy (Double[] args, LocalDateTime from, LocalDateTime to) {
+    private boolean updateEnergy (Double[] args, LocalDateTime from, LocalDateTime to) {
         // (TODO) call energy stuff, for now, cost is only about duration
-        energyAwareness.addEnergyData(args, (double) Duration.between(from, to).toMillis());
-        
+        var kept = energyAwareness
+	    .addEnergyData(args, (double) Duration.between(from, to).toMillis());
+	
 	// (TODO) how often? maybe inverse direction
         for (var address_time : address_time_list) {
             try {
@@ -306,6 +307,8 @@ public class BoxController {
                 // (TODO) can fall down to remote dedicated service.
             }
         }
+
+	return kept;
     }
 
 }

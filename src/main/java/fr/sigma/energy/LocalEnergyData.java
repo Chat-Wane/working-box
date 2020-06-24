@@ -33,8 +33,6 @@ public class LocalEnergyData {
     private TreeMap<Double, String> costToInput;
     private TreeMap<String, Double[]> inputToArgs;
 
-    private boolean isLastInputKept;
-    
     public LocalEnergyData (int maxSize) {
 	this.maxSize = maxSize;
         inputToCost = new TreeMap();
@@ -45,7 +43,6 @@ public class LocalEnergyData {
     }
 
     public int getMaxSize() { return maxSize; }
-    public boolean getIsLastInputKept() { return isLastInputKept; }
     public int size() { return inputToCost.size(); }
 
     public double[] getCosts() {
@@ -126,8 +123,15 @@ public class LocalEnergyData {
     }
 
 
-    
-    public void addEnergyData (Double[] argsAsArray, double cost) {
+
+    /**
+     * Tries to add the pair of arguments,cost to the local monitored
+     * data if the cost is sufficiently meaningful to be kept.
+     * @param argsAsArray: the arguments of the call.
+     * @param cost: the cost of the call with such arguments.
+     * @returns true if the data has been registered, false otherwise.
+     */
+    public boolean addEnergyData (Double[] argsAsArray, double cost) {
         // (TODO) cache intermediate results
         // (TODO) improve time complexity
         var args = new ArrayList<Double>(Arrays.asList(argsAsArray));
@@ -135,8 +139,7 @@ public class LocalEnergyData {
         if (costToInput.containsKey(cost)) {
             // (for now, cannot have multiple values for a cost)
             // (TODO) maybe change this
-	    isLastInputKept = false;
-            return ;
+            return false;
         }
         
         var argsString = args.stream()
@@ -150,8 +153,7 @@ public class LocalEnergyData {
             inputToCost.put(key, cost);
             costToInput.put(cost, key);
 	    inputToArgs.put(key, argsAsArray);
-	    isLastInputKept = true;
-            return ;
+            return true;
         }
 
         // #2 otherwise, try and see if it adds knowledge
@@ -208,7 +210,7 @@ public class LocalEnergyData {
 
         logger.info(String.format("Average of kernel density estimators old: %s vs new: %s.",
 				  average, averageChanged));
-	isLastInputKept = average > averageChanged;
+	boolean isLastInputKept = average > averageChanged;
         if (isLastInputKept) { // Replace peaking value by new flatter value
             inputToCost.remove(costToInput.get(maxValue));
 	    inputToArgs.remove(costToInput.get(maxValue));
@@ -217,5 +219,7 @@ public class LocalEnergyData {
             costToInput.put(cost, key);
 	    inputToArgs.put(key, argsAsArray);
         }
+	
+	return isLastInputKept;
     }
 }
