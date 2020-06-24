@@ -165,8 +165,8 @@ public class EnergyAwarenessTest {
         // miss new remote
         ea.updateRemote("waf", TreeRangeSet.create());
         objectives = ea.getObjectives(28, false);
-        assertEquals(-1., (double) objectives.get("meow"));
-        assertEquals(-1., (double) objectives.get("woof"));
+        assertEquals(0., (double) objectives.get("meow"));
+        assertEquals(12.5, (double) objectives.get("woof"));
         assertEquals(-1., (double) objectives.get("waf"));        
     }
     
@@ -259,7 +259,10 @@ public class EnergyAwarenessTest {
 	var objectives = os.getLeft();
 	var solution = os.getMiddle();
 
-	assertEquals(2, objectives.size());	
+	assertEquals(3, objectives.size());
+	assertEquals(-1., (double) objectives.get("Simon"));
+	assertEquals(10., (double) objectives.get("meow"));
+	assertEquals(110., (double) objectives.get("Thomas"));
     }
 				       
     
