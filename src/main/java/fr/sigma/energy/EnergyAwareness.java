@@ -53,7 +53,9 @@ public class EnergyAwareness {
         this.name = name;
     }
 
-    public TreeMap<String, TreeRangeSet<Double>> getFuncToIntervals() { return funcToIntervals;}
+    public TreeMap<String, TreeRangeSet<Double>> getFuncToIntervals() {
+        return funcToIntervals;
+    }
     public LocalEnergyData getLocalEnergyData() { return localEnergyData; }
     public String getName() { return name; }
 
@@ -68,10 +70,10 @@ public class EnergyAwareness {
     public Triple<TreeMap<String, Double>, Double[], Boolean>
 	newFunctionCall(double objective, Double[] args) {
 		
-        if (objective < 0) {
+        if (objective < 0) { // default
             logger.info("This box has no energy objective defined.");
             argsFilter.tryArgs(args);
-            return new ImmutableTriple(getObjectives(objective, false), args, false); // default
+            return new ImmutableTriple(getObjectives(objective, false), args, false);
         }
         
         logger.info(String.format("This box has an energy consumption objective of %s.",
@@ -83,9 +85,13 @@ public class EnergyAwareness {
 	
 	if (!argsFilter.isTriedEnough(args)) {
 	    // #1 not enough data to be part of the computation
-	    // (TODO) use local data to remove its own cost of the solution,
-	    // even if not precise
-	    objectives = getObjectives(objective, true);
+            if (localEnergyData.exists(args)) {
+                // small accuracy improvement when this service
+                // already monitored the current args.
+                logger.info("Removing known cost from objective.");
+                objective = Math.max(0., objective - localEnergyData.getCost(args));
+            }
+	    objectives = getObjectives(objective, true); // no objective for self
 	} else {
 	    // #2 divides objective between itself and remotes
 	    objectives = getObjectives(objective, false);
@@ -100,8 +106,7 @@ public class EnergyAwareness {
 				      Arrays.toString(solution)));
 	else
 	    solution = args;
-	
-	
+		
         argsFilter.tryArgs(solution);        
         return new ImmutableTriple(objectives, solution, isLastInputRewritten);
     }

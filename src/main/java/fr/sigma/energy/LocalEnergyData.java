@@ -53,6 +53,16 @@ public class LocalEnergyData {
     public int getMaxSize() { return maxSize; }
     public int size() { return inputToCost.size(); }
 
+    public boolean exists (Double[] args) {
+        return inputToCost.containsKey(toKey(args));
+    }
+
+    public double getCost(Double[] args) {
+        String key = toKey(args);
+        return inputToCost.get(key).stream()
+            .mapToDouble(d->d).average().orElse(0.);
+    }
+    
     public double[] getCosts() {
         return inputToCost.values().stream()
             .mapToDouble(costs-> costs.stream()
