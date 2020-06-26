@@ -13,7 +13,7 @@ public class LocalEnergyDataTest {
 
     @Test 
     void addEnergyDataSimple() {
-        var led = new LocalEnergyData(2);
+        var led = new LocalEnergyData(2, 3);
         Double[] args1 = {1.};
         led.addEnergyData(args1, 50.);
         assertEquals(1, led.getCosts().length);
@@ -27,14 +27,14 @@ public class LocalEnergyDataTest {
 
     @Test
     public void getIntervalOfNothin () {
-        var led = new LocalEnergyData(10);
+        var led = new LocalEnergyData(10, 3);
         var intervals = led.getIntervals();
         assert(intervals.isEmpty());
     }
 
     @Test
     public void getIntervalOfOneValue () {
-        var led = new LocalEnergyData(10);
+        var led = new LocalEnergyData(10, 3);
         Double[] args = {42.};
         led.addEnergyData(args, 1337.);
         var intervals = led.getIntervals();
@@ -43,7 +43,7 @@ public class LocalEnergyDataTest {
     
     @Test
     void getIntervalsSimple () {
-        var led = new LocalEnergyData(10);
+        var led = new LocalEnergyData(10, 3);
 
         for (int i = 0; i < 100; ++i) {            
             Double[] args = {(double) i};
