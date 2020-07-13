@@ -226,11 +226,12 @@ public class EnergyAwareness {
             ++groupIndex;
         }
 
-        var mckp = new MCKP(maxObjective, mckpElements); // (TODO) cache mckp
+
 
         // improve fairness by looking at other solutions
         // (TODO) improve complexity by examining different solutions only
         var solveWithObjective = maxObjective + (int) (maxObjective * fairnessFactor);
+        var mckp = new MCKP(solveWithObjective, mckpElements); // (TODO) cache mckp
         var untilObjective = maxObjective - (int) (maxObjective * fairnessFactor);
         ArrayList<MCKPElement> examineSolution = null, solution = null;
         var minStdDev = Double.POSITIVE_INFINITY;

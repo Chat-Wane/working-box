@@ -275,5 +275,39 @@ public class EnergyAwarenessTest {
         // (TODO) real workflow
     }
 
+
+
+    @Test
+    public void testFairnessBetweenTwoSolutionsLarge () {
+        var ea = new EnergyAwareness("meow", 10, 4, 1, 0.5);
+        var eaNoFair = new EnergyAwareness("meow", 10, 4, 1, 0.);
+
+	ea.addEnergyData(new Double[0], 10.);
+       	eaNoFair.addEnergyData(new Double[0], 10.);
+        
+        TreeRangeSet<Double> remoteRangeSet1 = TreeRangeSet.create();
+        remoteRangeSet1.add(Range.closed(1., 1.));
+        remoteRangeSet1.add(Range.closed(4., 4.));
+        ea.updateRemote("woof", remoteRangeSet1);
+        eaNoFair.updateRemote("woof", remoteRangeSet1);
+        TreeRangeSet<Double> remoteRangeSet2 = TreeRangeSet.create();
+        remoteRangeSet2.add(Range.closed(4., 4.));
+        remoteRangeSet2.add(Range.closed(8., 8.));
+        ea.updateRemote("waf", remoteRangeSet2);
+        eaNoFair.updateRemote("waf", remoteRangeSet2);
+        
+        var objectives = eaNoFair.getObjectives(9., true);
+        assertEquals(1., (double) objectives.get("woof")); 
+        assertEquals(8., (double) objectives.get("waf")); 
+
+        objectives = eaNoFair.getObjectives(8., true);
+        assertEquals(4., (double) objectives.get("woof")); 
+        assertEquals(4., (double) objectives.get("waf")); 
+
+        var objectivesFair = ea.getObjectives(9., true);
+        assertEquals(4., (double) objectivesFair.get("woof")); 
+        assertEquals(4., (double) objectivesFair.get("waf")); 
+    }
+
     
 }
