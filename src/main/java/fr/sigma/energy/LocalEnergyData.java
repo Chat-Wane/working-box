@@ -80,7 +80,7 @@ public class LocalEnergyData {
     }
 
     public Pair<Double, Double> getMinMaxCost() {
-        var costs = getCosts();
+        var costs = getSortedCosts();
         if (costs.length < 1)
             return new Pair(0., 0.);
         else
@@ -125,13 +125,13 @@ public class LocalEnergyData {
         var kernel = new KernelDensity(costs);       
         ArrayList<Double> sample = new ArrayList<Double>();
        
-        for (int i=0; i<SAMPLESIZE; ++i)
+        for (int i = 0; i < SAMPLESIZE; ++i)
             sample.add(kernel.p(minCost + (maxCost - minCost)/SAMPLESIZE * i));
 
         double sd = Math.sqrt(MathEx.var(sample.stream().mapToDouble(e->e).toArray()));
         double avg = MathEx.mean(sample.stream().mapToDouble(e->e).toArray());
 
-        double from = 0;
+        double from = minCost;
         boolean building = false;
         TreeRangeSet<Double> results = TreeRangeSet.create();
         for (int i = 0; i < sample.size(); ++i) {

@@ -76,7 +76,7 @@ public class BoxController {
 
 
     
-    public BoxController() {}
+    public BoxController() { }
 
     private void init() {
 	Span currentSpan = tracer.scopeManager().activeSpan();
