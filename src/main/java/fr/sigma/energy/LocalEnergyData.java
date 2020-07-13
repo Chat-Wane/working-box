@@ -11,6 +11,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
 
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
@@ -70,6 +71,22 @@ public class LocalEnergyData {
             .toArray();
     }
 
+    public double[] getAllCosts() {
+        var temp = new Double[0];
+        for (var costsData : inputToCost.values())
+            temp = Stream.concat(Arrays.stream(temp), costsData.stream())
+                .toArray(Double[]::new);
+        return Arrays.stream(temp).mapToDouble(d->d).toArray();
+    }
+
+    public Pair<Double, Double> getMinMaxOfAllCosts() {
+        var costs = Arrays.stream(getAllCosts()).sorted().toArray();
+        if (costs.length < 1)
+            return new Pair(0., 0.);
+        else
+            return new Pair(costs[0], costs[costs.length - 1]);
+    }
+
     // (TODO) change this: for now, useless and slightly waste
     // resources where we can have O(N) but we have O(NlogN).
     public double[] getSortedCosts() {
@@ -109,7 +126,7 @@ public class LocalEnergyData {
     public TreeRangeSet<Double> getIntervals() {
         TreeRangeSet<Double> resultingIntervals = TreeRangeSet.create();
         
-        double[] costs = getCosts();
+        double[] costs = getAllCosts();
 
         if (costs.length == 0) // kernel needs at least 2 values
             return resultingIntervals;
@@ -118,12 +135,11 @@ public class LocalEnergyData {
             return resultingIntervals;
         }
 
-        var minmax = getMinMaxCost();
-        var minCost = minmax.first;
-        var maxCost = minmax.second;
+        var minmax = getMinMaxOfAllCosts();
+        double minCost = minmax.first, maxCost = minmax.second;
         
         var kernel = new KernelDensity(costs);       
-        ArrayList<Double> sample = new ArrayList<Double>();
+        var sample = new ArrayList<Double>();
        
         for (int i = 0; i < SAMPLESIZE; ++i)
             sample.add(kernel.p(minCost + (maxCost - minCost)/SAMPLESIZE * i));
