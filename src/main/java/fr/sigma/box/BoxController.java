@@ -63,6 +63,8 @@ public class BoxController {
     private Integer energy_threshold_before_self_tuning_args;
     @Value("${box.energy.max.local.data:20}")
     private Integer energy_max_local_data;
+    @Value("${box.energy.fairness.factor:0}")
+    private Double energy_fairness_factor;
     @Value("${box.energy.factor.localdatakept.differentdatamonitored:10.0}")
     private Double energy_factor_localdatakept_differentdatamonitored;
     private EnergyAwareness energyAwareness;
@@ -118,7 +120,8 @@ public class BoxController {
         energyAwareness = new EnergyAwareness(service_name,
 					      energy_max_local_data,
 					      nbDifferentInputMonitored,
-                                              energy_threshold_before_self_tuning_args);
+                                              energy_threshold_before_self_tuning_args,
+                                              energy_fairness_factor);
         energyAwareness.updateRemotes(names);
 
 	currentSpan.log(ImmutableMap.of("event", "stopInit"));
