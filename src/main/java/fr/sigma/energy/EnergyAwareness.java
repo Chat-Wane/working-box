@@ -36,7 +36,9 @@ public class EnergyAwareness {
     private ArgsFilter argsFilter;
     private final String name;
 
-    private int maxObjective = 1000;
+    private int maxObjective = 1000; // (TODO) upscale downscale automatically
+    // allows other solutions to improve fairness (between 0 and 1)
+    private double fairnessFactor = 0.00; 
 
     public EnergyAwareness(String name, int maxSizeOfLocalData, int thresholdFilter) {
         funcToIntervals = new TreeMap();
@@ -53,6 +55,16 @@ public class EnergyAwareness {
         this.name = name;
     }
 
+    public EnergyAwareness(String name, int maxSizeOfLocalData,
+                           int nbDifferentInput, int thresholdFilter,
+                           double fairnessFactor) {
+        funcToIntervals = new TreeMap();
+        localEnergyData = new LocalEnergyData(maxSizeOfLocalData, thresholdFilter);
+        argsFilter = new ArgsFilter(nbDifferentInput, thresholdFilter);
+        this.fairnessFactor = fairnessFactor;
+        this.name = name;
+    }
+    
     public TreeMap<String, TreeRangeSet<Double>> getFuncToIntervals() {
         return funcToIntervals;
     }
@@ -215,7 +227,34 @@ public class EnergyAwareness {
         }
 
         var mckp = new MCKP(maxObjective, mckpElements); // (TODO) cache mckp
-        var solution = mckp.solve(maxObjective);
+
+        // improve fairness by looking at other solutions
+        // (TODO) improve complexity by examining different solutions only
+        var solveWithObjective = maxObjective + (int) (maxObjective * fairnessFactor);
+        var untilObjective = maxObjective - (int) (maxObjective * fairnessFactor);
+        ArrayList<MCKPElement> examineSolution = null, solution = null;
+        var minStdDev = Double.POSITIVE_INFINITY;
+        while (solveWithObjective >= untilObjective) {
+            examineSolution = mckp.solve(solveWithObjective);
+            solveWithObjective -= 1;
+
+            double meanSolution = 0.;
+            double stdDev = 0.;
+            for (var element : examineSolution) 
+                meanSolution += element.weight;
+            meanSolution = (double) meanSolution / examineSolution.size();
+
+            for (var element : examineSolution) 
+                stdDev += Math.pow(element.weight - meanSolution, 2);
+            stdDev = Math.sqrt(stdDev / examineSolution.size());
+
+            if (Objects.isNull(solution))
+                solution = examineSolution;
+            if (stdDev < minStdDev) { // fairer solution, keep it
+                minStdDev = stdDev;
+                solution = examineSolution;
+            }
+        }                     
 
         var funcToInterval = new TreeMap<String, Range>();
         for (int i = 0; i < solution.size(); ++i) {
