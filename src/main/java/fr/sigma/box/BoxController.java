@@ -232,6 +232,8 @@ public class BoxController {
 	var lastLocalInputKept = updateEnergy(solution, start, LocalDateTime.now());
 	currentSpan.setTag("isLastInputKept", lastLocalInputKept);
 
+        currentSpan.setTag("localCosts", Arrays.toString(energyAwareness.getLocalEnergyData().getSortedCosts()));
+        
         return new ResponseEntity<String>(":)\n", HttpStatus.OK);
     }
     
