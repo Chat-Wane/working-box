@@ -16,13 +16,13 @@ public class LocalEnergyDataTest {
         var led = new LocalEnergyData(2, 3);
         Double[] args1 = {1.};
         led.addEnergyData(args1, 50.);
-        assertEquals(1, led.getCosts().length);
+        assertEquals(1, led.getAvgCosts().size());
         Double[] args2 = {2.};
         led.addEnergyData(args2, 55.);
-        assertEquals(2, led.getCosts().length);
+        assertEquals(2, led.getAvgCosts().size());
         Double[] args3 = {3.};
         led.addEnergyData(args3, 60.);
-        assertEquals(2, led.getCosts().length);
+        assertEquals(2, led.getAvgCosts().size());
     }
 
     @Test
@@ -45,11 +45,11 @@ public class LocalEnergyDataTest {
     void getIntervalsSimple () {
         var led = new LocalEnergyData(10, 3);
 
-        for (int i = 0; i < 100; ++i) {            
+        for (int i = 0; i < 500; ++i) {            
             Double[] args = {(double) i};
             led.addEnergyData(args, (double) i);
         }
-        assertEquals(10, led.getCosts().length);
+        assertEquals(10, led.getAvgCosts().size());
         
         var intervals = led.getIntervals();
         assert(!intervals.isEmpty());

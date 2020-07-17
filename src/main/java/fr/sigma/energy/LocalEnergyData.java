@@ -37,6 +37,16 @@ public class LocalEnergyData {
     private double maxError = 15.;
     private TreeMap<String, ArrayList<Double>> inputToCost;
     private TreeMap<String, Double[]> inputToArgs;
+
+
+    public LocalEnergyData (int maxSize, int maxCosts) {
+	this.maxSize = maxSize;
+        this.maxCosts = maxCosts;
+        inputToCost = new TreeMap();
+	inputToArgs = new TreeMap();
+	logger.info(String.format("Initialized local profiler with max data kept %s x %s.",
+				  maxSize, maxCosts));
+    }
     
     /**
      * @param maxSize: the maximum number of arguments that are kept
@@ -102,27 +112,21 @@ public class LocalEnergyData {
     
 
     
-    // (TODO) cache results of kernel density
     public TreeRangeSet<Double> getIntervals() {
         TreeRangeSet<Double> resultingIntervals = TreeRangeSet.create();
-        
-        ArrayList<Pair<String, Double>> costs = getAvgCosts();
-
-        if (costs.size() == 0) // kernel needs at least 2 values
-            return resultingIntervals;
-        if (costs.size() == 1) {
+        var costs = getAvgCosts();        
+        if (costs.size() == 1) 
             resultingIntervals.add(Range.closed(costs.get(0).second, costs.get(0).second));
-            return resultingIntervals;
-        }
-
-        // (TODO)
-        
+        else
+            for (Pair<String, Double> cost : costs) 
+                resultingIntervals.add(Range.closed(Math.max(0., cost.second - maxError),
+                                                    Math.max(0.,cost.second + maxError)));        
         return resultingIntervals;
     }
-
+    
 
 
-    public boolean _add(Double[] inputs, Double cost) {
+public boolean _add(Double[] inputs, Double cost) {
         String newKey = toKey(inputs);
         boolean isNew = !inputToCost.containsKey(newKey);
         if (isNew) {

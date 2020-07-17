@@ -279,8 +279,8 @@ public class EnergyAwarenessTest {
 
     @Test
     public void testFairnessBetweenTwoSolutionsLarge () {
-        var ea = new EnergyAwareness("meow", 10, 4, 1, 0.5);
-        var eaNoFair = new EnergyAwareness("meow", 10, 4, 1, 0.);
+        var ea = new EnergyAwareness("meow", 10, 4, 1, 0.5, 15);
+        var eaNoFair = new EnergyAwareness("meow", 10, 4, 1, 0., 15);
 
 	ea.addEnergyData(new Double[0], 10.);
        	eaNoFair.addEnergyData(new Double[0], 10.);
