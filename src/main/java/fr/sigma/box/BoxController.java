@@ -67,6 +67,8 @@ public class BoxController {
     private Double energy_fairness_factor;
     @Value("${box.energy.factor.localdatakept.differentdatamonitored:10.0}")
     private Double energy_factor_localdatakept_differentdatamonitored;
+    @Value("${box.energy.max.error:15}")
+    private Double energy_max_error;
     private EnergyAwareness energyAwareness;
 
     @Value("${spring.application.name}")
@@ -121,7 +123,8 @@ public class BoxController {
 					      energy_max_local_data,
 					      nbDifferentInputMonitored,
                                               energy_threshold_before_self_tuning_args,
-                                              energy_fairness_factor);
+                                              energy_fairness_factor,
+                                              energy_max_error);
         energyAwareness.updateRemotes(names);
 
 	currentSpan.log(ImmutableMap.of("event", "stopInit"));
@@ -232,7 +235,7 @@ public class BoxController {
 	var lastLocalInputKept = updateEnergy(solution, start, LocalDateTime.now());
 	currentSpan.setTag("isLastInputKept", lastLocalInputKept);
 
-        currentSpan.setTag("localCosts", Arrays.toString(energyAwareness.getLocalEnergyData().getSortedCosts()));
+        currentSpan.setTag("localCosts", Arrays.toString(energyAwareness.getLocalEnergyData().getSortedAvgCosts()));
         
         return new ResponseEntity<String>(":)\n", HttpStatus.OK);
     }

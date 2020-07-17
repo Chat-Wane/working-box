@@ -9,8 +9,9 @@ import java.util.Collection;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.DoubleStream;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.collect.Range;
@@ -30,21 +31,26 @@ import org.slf4j.LoggerFactory;
 public class LocalEnergyData {
 
     private Logger logger = LoggerFactory.getLogger(getClass());    
-    private int SAMPLESIZE = 1000;
-    
+
     private int maxSize = 10;
     private int maxCosts = 3;
+    private double maxError = 15.;
     private TreeMap<String, ArrayList<Double>> inputToCost;
     private TreeMap<String, Double[]> inputToArgs;
     
     /**
-     * @param maxSize: the maximum number of arguments that are kept locally.
+     * @param maxSize: the maximum number of arguments that are kept
+     * locally.  Reaching this threshold, costs are kept regularly
+     * spaced; otherwise, maxError is the target.
      * @param maxCosts: the number of costs for each set of arguments
      * that are kept for meaningful statistics purpose.
+     * @param maxError: the maximal allowed error in costs. Priority
+     * to maxSize though.
      */
-    public LocalEnergyData (int maxSize, int maxCosts) {
+    public LocalEnergyData (int maxSize, int maxCosts, double maxError) {
 	this.maxSize = maxSize;
         this.maxCosts = maxCosts;
+        this.maxError = maxError;
         inputToCost = new TreeMap();
 	inputToArgs = new TreeMap();
 	logger.info(String.format("Initialized local profiler with max data kept %s x %s.",
@@ -64,44 +70,18 @@ public class LocalEnergyData {
             .mapToDouble(d->d).average().orElse(0.);
     }
     
-    public double[] getCosts() {
-        return inputToCost.values().stream()
-            .mapToDouble(costs-> costs.stream()
-                         .mapToDouble(d->d).average().orElse(0.))
-            .toArray();
+    public ArrayList<Pair<String, Double>> getAvgCosts() {
+        var avgCosts = new ArrayList<Pair<String, Double>>();
+        for (Map.Entry<String, ArrayList<Double>> ic: inputToCost.entrySet()) 
+            avgCosts.add(new Pair(ic.getKey(),
+                                  ic.getValue().stream()
+                                  .mapToDouble(d->d).average().orElse(0.)));
+        return avgCosts;
     }
 
-    public double[] getAllCosts() {
-        var temp = new Double[0];
-        for (var costsData : inputToCost.values())
-            temp = Stream.concat(Arrays.stream(temp), costsData.stream())
-                .toArray(Double[]::new);
-        return Arrays.stream(temp).mapToDouble(d->d).toArray();
-    }
-
-    public Pair<Double, Double> getMinMaxOfAllCosts() {
-        var costs = Arrays.stream(getAllCosts()).sorted().toArray();
-        if (costs.length < 1)
-            return new Pair(0., 0.);
-        else
-            return new Pair(costs[0], costs[costs.length - 1]);
-    }
-
-    // (TODO) change this: for now, useless and slightly waste
-    // resources where we can have O(N) but we have O(NlogN).
-    public double[] getSortedCosts() {
-        return inputToCost.values().stream()
-            .mapToDouble(costs-> costs.stream()
-                         .mapToDouble(d->d).average().orElse(0.))
-            .sorted().toArray();
-    }
-
-    public Pair<Double, Double> getMinMaxCost() {
-        var costs = getSortedCosts();
-        if (costs.length < 1)
-            return new Pair(0., 0.);
-        else
-            return new Pair(costs[0], costs[costs.length - 1]);
+    public double[] getSortedAvgCosts() {
+        var avgCosts = getAvgCosts();
+        return avgCosts.stream().mapToDouble(p -> p.second).sorted().toArray();
     }
 
     public Double[] getClosest(double objective) {
@@ -126,55 +106,46 @@ public class LocalEnergyData {
     public TreeRangeSet<Double> getIntervals() {
         TreeRangeSet<Double> resultingIntervals = TreeRangeSet.create();
         
-        double[] costs = getAllCosts();
+        ArrayList<Pair<String, Double>> costs = getAvgCosts();
 
-        if (costs.length == 0) // kernel needs at least 2 values
+        if (costs.size() == 0) // kernel needs at least 2 values
             return resultingIntervals;
-        if (costs.length == 1) {
-            resultingIntervals.add(Range.closed(costs[0], costs[0]));
+        if (costs.size() == 1) {
+            resultingIntervals.add(Range.closed(costs.get(0).second, costs.get(0).second));
             return resultingIntervals;
         }
 
-        var minmax = getMinMaxOfAllCosts();
-        double minCost = minmax.first, maxCost = minmax.second;
+        // (TODO)
         
-        var kernel = new KernelDensity(costs);       
-        var sample = new ArrayList<Double>();
-       
-        for (int i = 0; i < SAMPLESIZE; ++i)
-            sample.add(kernel.p(minCost + (maxCost - minCost)/SAMPLESIZE * i));
-
-        double sd = Math.sqrt(MathEx.var(sample.stream().mapToDouble(e->e).toArray()));
-        double avg = MathEx.mean(sample.stream().mapToDouble(e->e).toArray());
-
-        double from = minCost;
-        boolean building = false;
-        TreeRangeSet<Double> results = TreeRangeSet.create();
-        for (int i = 0; i < sample.size(); ++i) {
-            if ((avg - sd) <= sample.get(i) && sample.get(i) <= (avg + sd)) {
-                if (!building) {
-                    building = true;
-                    from = minCost + (maxCost - minCost)/SAMPLESIZE * i;
-                }
-            } else {
-                if (building) {
-                    building = false;
-                    var to = minCost + (maxCost - minCost)/SAMPLESIZE * i - 1;
-                    results.add(Range.closed(from, to));
-                }
-            }
-        }
-
-        if (building) { // close last bound
-            var to = minCost + (maxCost - minCost)/SAMPLESIZE * sample.size() - 1;
-            results.add(Range.closed(from, to));
-        }
-        
-        return results;
+        return resultingIntervals;
     }
 
 
 
+    public boolean _add(Double[] inputs, Double cost) {
+        String newKey = toKey(inputs);
+        boolean isNew = !inputToCost.containsKey(newKey);
+        if (isNew) {
+            var costs = new ArrayList<Double>();
+            costs.add(cost);
+            inputToCost.put(newKey, costs);
+            inputToArgs.put(newKey, inputs);
+        } else {
+            ArrayList<Double> costsOfInput = inputToCost.get(newKey);
+            while (costsOfInput.size() >= maxCosts) 
+                costsOfInput.remove(0); // pop oldest
+            costsOfInput.add(new Double(cost)); // add newest
+        }
+        return isNew;
+    }
+
+    public void _rem(String key) {
+        if (inputToCost.containsKey(key)){
+            inputToCost.remove(key);
+            inputToArgs.remove(key);
+        }
+    }
+    
     /**
      * Tries to add the pair of arguments,cost to the local monitored
      * data if the cost is sufficiently meaningful to be kept.
@@ -184,79 +155,85 @@ public class LocalEnergyData {
      * @returns true if the data has replaced another value, false otherwise.
      */
     public boolean addEnergyData (Double[] argsAsArray, double cost) {
-        String newKey = toKey(argsAsArray);
+        // #A if the key already exists, we only include the new value
+        // to the sliding window of monitored values.
+        boolean isNew = _add(argsAsArray, cost);        
+        if (!isNew)
+            return false;
 
-        // #A already have the args as key, we add the value to add
-        // statistical significance to the local sample.
-        if (inputToCost.containsKey(newKey)) {
-            ArrayList<Double> costsOfInput = inputToCost.get(newKey);
-            if (costsOfInput.size() >= maxCosts) 
-                costsOfInput.remove(0); // pop oldest
-            costsOfInput.add(new Double(cost)); // add newest
-            return false; 
-        }
+        boolean isLastInputKept = false;
+        // #B otherwise, we keep only significant costs.
+        ArrayList<Pair<String, Double>> avgCosts = getAvgCosts();
+        avgCosts.sort((p1, p2) -> p1.second.compareTo(p2.second));
 
-        // #B otherwise, if we need data, add it immediately
-        if (inputToCost.size() < maxSize) {
-            inputToCost.put(newKey, new ArrayList<Double>());
-            inputToCost.get(newKey).add(cost);
-	    inputToArgs.put(newKey, argsAsArray);
-            return true;
-        }
-        
-        // #C otherwise, compete with the other local value to
-        // determine which should be kept       
-        var costToInput = new TreeMap();                
-        double[] costAsDouble = getCosts();        
-        var kernel = new KernelDensity(costAsDouble);
-        
-        ArrayList<Double> sample = new ArrayList<Double>();
-        var minmax = getMinMaxCost();
-        var minCost = minmax.first;
-        var maxCost = minmax.second;
-        
-        for (int i = 0; i < SAMPLESIZE; ++i)
-            sample.add(kernel.p(minCost + (maxCost - minCost)/SAMPLESIZE * i));
-
-        double average = sample.stream().mapToDouble(e->e).average().getAsDouble();
-        double[] densityAsDouble = Arrays.stream(costAsDouble)
-            .map(e->kernel.p(e)).toArray();
-
-        // get the value that peak in costs to check if it should be replaced
-        double max = 0.;
-        int maxIndex = -1;
-        double maxValue = -1.;
-        for (int i = 0; i < costAsDouble.length; ++i) {
-            if (max < densityAsDouble[i]) {
-                max = densityAsDouble[i];
-                maxValue = costAsDouble[i];
-                maxIndex = i;
-            }
-        }
-
-        // replace the highest by the new data and see if it is better
-        costAsDouble[maxIndex] = cost;
-        var kernelChanged = new KernelDensity(costAsDouble);
-
-        sample = new ArrayList<Double>();
-        minCost = cost < minCost ? cost : minCost;
-        maxCost = cost > maxCost ? cost : maxCost;
-        for (int i = 0; i < SAMPLESIZE; ++i)
-            sample.add(kernelChanged.p(minCost + (maxCost - minCost)/SAMPLESIZE * i));
-
-        double averageChanged = sample.stream().mapToDouble(e->e).average().getAsDouble();
-
-        logger.info(String.format("Average of kernel density estimators old: %s vs new: %s.",
-				  average, averageChanged));
-	boolean isLastInputKept = average > averageChanged;
-        if (isLastInputKept) { // Replace peaking value by new flatter value
-            String maxKey = toKey(getClosest(maxValue));
-            inputToCost.remove(maxKey);
-            inputToArgs.remove(maxKey);
+        if (avgCosts.size() > maxSize) {
+            // #1 when there are too many elements, we keep most
+            // regularly spaced costs regardless of maxError.
+            var errors = new ArrayList<Double>();
+            for (int j  = 1; j < avgCosts.size() - 1; ++j) 
+                errors.add(Math.pow(avgCosts.get(j).second - avgCosts.get(j-1).second, 2) +
+                           Math.pow(avgCosts.get(j+1).second - avgCosts.get(j).second, 2));
+            double minError = avgCosts.stream().mapToDouble(p2->p2.second).min().orElse(0.);
+            int[] minErrorIndexT = {-1};
+            avgCosts.stream().peek(x -> minErrorIndexT[0]++) // ugly and hacky
+                .filter(p1 -> p1.second == minError)
+                .findFirst().get();
+            int minErrorIndex = minErrorIndexT[0];
+            String keyToDelete = avgCosts.get(minErrorIndex).first;
+            _rem(keyToDelete);
+            return keyToDelete.equals(toKey(argsAsArray));
+        } else if (avgCosts.size() > 2) {
+            // #2 we aim at keeping costs that have a space lower than
+            // 2*maxError with their neighbor(s); but only most
+            // significant.
+            int[] startIndexT = {-1};
+            avgCosts.stream().peek(x -> startIndexT[0]++)
+                .filter(p -> p.first.equals(toKey(argsAsArray)))
+                .findFirst().get();
+            int startIndex = Math.max(1, Math.min(startIndexT[0], avgCosts.size() - 2));
             
-            inputToCost.put(newKey, new ArrayList<Double>());
-            inputToCost.get(newKey).add(cost);
-	    inputToArgs.put(newKey, argsAsArray);
+            // no need to investigate if the new value is only improvement
+            boolean investigating =
+                avgCosts.get(startIndex).second - avgCosts.get(startIndex - 1).second < 2*maxError ||
+                avgCosts.get(startIndex + 1).second - avgCosts.get(startIndex).second < 2*maxError;
+            
+            if (investigating) {
+                int lowerI = startIndex - 1;
+                while (lowerI > 0 &&
+                       avgCosts.get(lowerI + 1).second - avgCosts.get(lowerI - 1).second < 2*maxError)
+                    lowerI -= 1;
+                int higherI = startIndex + 1;
+                while (higherI < avgCosts.size() - 1 &&
+                       avgCosts.get(higherI + 1).second - avgCosts.get(higherI - 1).second < 2*maxError)
+                    higherI += 1;
+
+                boolean removing = true;
+                while (removing && higherI - lowerI > 0) {
+                    var errors = new ArrayList<Double>();
+                    for (int j = lowerI + 1; j < higherI; ++j) 
+                        errors.add(Math.pow(avgCosts.get(j).second - avgCosts.get(j-1).second, 2) +
+                                   Math.pow(avgCosts.get(j+1).second - avgCosts.get(j).second, 2));
+                    int[] sortedErrors = IntStream.range(0, errors.size())
+                        .boxed().sorted((i, j) -> errors.get(i).compareTo(errors.get(j)) )
+                        .mapToInt(ele -> ele).toArray();
+                    
+                    removing = false;
+                    int k = 0, kE = -1;
+                    while (!removing && k < sortedErrors.length){
+                        kE = sortedErrors[k];
+                        removing = avgCosts.get(kE + lowerI + 2).second - avgCosts.get(kE + lowerI).second < 2*maxError;
+                        k += 1;
+                    }
+
+                    if (removing) {
+                        String keyToRemove = avgCosts.get(kE + lowerI + 1).first;
+                        isLastInputKept = !isLastInputKept && keyToRemove.equals(toKey(argsAsArray));
+                        _rem(keyToRemove);
+                        avgCosts.remove(kE + lowerI + 1);
+                        higherI -= 1;
+                    }
+                }
+            }            
         }
 	
 	return isLastInputKept;

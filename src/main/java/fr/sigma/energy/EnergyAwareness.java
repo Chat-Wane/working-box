@@ -42,7 +42,7 @@ public class EnergyAwareness {
 
     public EnergyAwareness(String name, int maxSizeOfLocalData, int thresholdFilter) {
         funcToIntervals = new TreeMap();
-        localEnergyData = new LocalEnergyData(maxSizeOfLocalData, thresholdFilter);
+        localEnergyData = new LocalEnergyData(maxSizeOfLocalData, thresholdFilter, 15.);
         argsFilter = new ArgsFilter(thresholdFilter);
         this.name = name;
     }
@@ -50,16 +50,16 @@ public class EnergyAwareness {
     public EnergyAwareness(String name, int maxSizeOfLocalData,
 			   int nbDifferentInput, int thresholdFilter) {
         funcToIntervals = new TreeMap();
-        localEnergyData = new LocalEnergyData(maxSizeOfLocalData, thresholdFilter);
+        localEnergyData = new LocalEnergyData(maxSizeOfLocalData, thresholdFilter, 15.);
         argsFilter = new ArgsFilter(nbDifferentInput, thresholdFilter);
         this.name = name;
     }
 
     public EnergyAwareness(String name, int maxSizeOfLocalData,
                            int nbDifferentInput, int thresholdFilter,
-                           double fairnessFactor) {
+                           double fairnessFactor, double maxError) {
         funcToIntervals = new TreeMap();
-        localEnergyData = new LocalEnergyData(maxSizeOfLocalData, thresholdFilter);
+        localEnergyData = new LocalEnergyData(maxSizeOfLocalData, thresholdFilter, maxError);
         argsFilter = new ArgsFilter(nbDifferentInput, thresholdFilter);
         this.fairnessFactor = fairnessFactor;
         this.name = name;
