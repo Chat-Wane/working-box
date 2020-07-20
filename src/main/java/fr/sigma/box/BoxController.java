@@ -24,6 +24,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.PostConstruct;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -82,9 +83,10 @@ public class BoxController {
     
     public BoxController() { }
 
+    @PostConstruct
     private void init() {
-	Span currentSpan = tracer.scopeManager().activeSpan();
-	currentSpan.log(ImmutableMap.of("event", "startInit"));
+	// Span currentSpan = tracer.scopeManager().activeSpan();
+	// currentSpan.log(ImmutableMap.of("event", "startInit"));
 	
         restTemplate = new RestTemplate();
         
@@ -127,7 +129,7 @@ public class BoxController {
                                               energy_max_error);
         energyAwareness.updateRemotes(names);
 
-	currentSpan.log(ImmutableMap.of("event", "stopInit"));
+	// currentSpan.log(ImmutableMap.of("event", "stopInit"));
     }
 
     /**
@@ -205,6 +207,8 @@ public class BoxController {
 	currentSpan.setTag("solution", Arrays.toString(solution));	
 	
         var polyResult = polynomes.get(solution);
+        currentSpan.setTag("polyResult", polyResult);
+        
         var limit = polyResult > 0 ? Duration.ofMillis(polyResult) : Duration.ZERO;  
         logger.info(String.format("This box must run during %s and call %s other boxes.",
                                   DurationFormatUtils.formatDurationHMS(limit.toMillis()),
@@ -234,8 +238,10 @@ public class BoxController {
         // #D monitor and update local energy        
 	var lastLocalInputKept = updateEnergy(solution, start, LocalDateTime.now());
 	currentSpan.setTag("isLastInputKept", lastLocalInputKept);
-
-        currentSpan.setTag("localCosts", Arrays.toString(energyAwareness.getLocalEnergyData().getSortedAvgCosts()));
+        currentSpan.setTag("localCosts",
+                           Arrays.toString(energyAwareness
+                                           .getLocalEnergyData()
+                                           .getSortedAvgCosts()));
         
         return new ResponseEntity<String>(":)\n", HttpStatus.OK);
     }

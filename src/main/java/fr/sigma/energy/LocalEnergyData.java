@@ -164,7 +164,7 @@ public boolean _add(Double[] inputs, Double cost) {
         if (!isNew)
             return false;
 
-        boolean isLastInputKept = false;
+        boolean isLastInputKept = true;
         // #B otherwise, we keep only significant costs.
         ArrayList<Pair<String, Double>> avgCosts = getAvgCosts();
         avgCosts.sort((p1, p2) -> p1.second.compareTo(p2.second));
@@ -184,7 +184,7 @@ public boolean _add(Double[] inputs, Double cost) {
             int minErrorIndex = minErrorIndexT[0];
             String keyToDelete = avgCosts.get(minErrorIndex + 1).first;
             _rem(keyToDelete);
-            return keyToDelete.equals(toKey(argsAsArray));
+            return !keyToDelete.equals(toKey(argsAsArray));
         } else if (avgCosts.size() > 2) {
             // #2 we aim at keeping costs that have a space lower than
             // 2*maxError with their neighbor(s); but only most
@@ -230,11 +230,14 @@ public boolean _add(Double[] inputs, Double cost) {
 
                     if (removing) {
                         String keyToRemove = avgCosts.get(kE + lowerI + 1).first;
-                        isLastInputKept = !isLastInputKept && keyToRemove.equals(toKey(argsAsArray));
+                        if (isLastInputKept)
+                            isLastInputKept = !keyToRemove.equals(toKey(argsAsArray));
                         _rem(keyToRemove);
                         avgCosts.remove(kE + lowerI + 1);
                         higherI -= 1;
                     }
+
+
                 }
             }            
         }
