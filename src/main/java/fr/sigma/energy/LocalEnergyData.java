@@ -130,8 +130,7 @@ public boolean _add(Double[] inputs, Double cost) {
         String newKey = toKey(inputs);
         boolean isNew = !inputToCost.containsKey(newKey);
         if (isNew) {
-            var costs = new ArrayList<Double>();
-            costs.add(cost);
+            var costs = new ArrayList<Double>(); costs.add(cost);
             inputToCost.put(newKey, costs);
             inputToArgs.put(newKey, inputs);
         } else {
@@ -177,13 +176,13 @@ public boolean _add(Double[] inputs, Double cost) {
             for (int j  = 1; j < avgCosts.size() - 1; ++j) 
                 errors.add(Math.pow(avgCosts.get(j).second - avgCosts.get(j-1).second, 2) +
                            Math.pow(avgCosts.get(j+1).second - avgCosts.get(j).second, 2));
-            double minError = avgCosts.stream().mapToDouble(p2->p2.second).min().orElse(0.);
+            double minError = errors.stream().mapToDouble(e->e).min().orElse(0.);
             int[] minErrorIndexT = {-1};
-            avgCosts.stream().peek(x -> minErrorIndexT[0]++) // ugly and hacky
-                .filter(p1 -> p1.second == minError)
+            errors.stream().peek(x -> minErrorIndexT[0]++) // ugly and hacky
+                .filter(e -> e == minError)
                 .findFirst().get();
             int minErrorIndex = minErrorIndexT[0];
-            String keyToDelete = avgCosts.get(minErrorIndex).first;
+            String keyToDelete = avgCosts.get(minErrorIndex + 1).first;
             _rem(keyToDelete);
             return keyToDelete.equals(toKey(argsAsArray));
         } else if (avgCosts.size() > 2) {

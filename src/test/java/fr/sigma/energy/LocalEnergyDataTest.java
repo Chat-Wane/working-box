@@ -55,4 +55,29 @@ public class LocalEnergyDataTest {
         assert(!intervals.isEmpty());
         assert(intervals.asRanges().size() <= led.getMaxSize());
     }
+
+
+
+    @Test
+    public void costs () {
+        var led = new LocalEnergyData(100, 3, 15.);        
+        for (int i = 0; i < 300; ++i) { // This test corresponds to failing experiments
+            double whichSet = Math.random() * 3.;
+            double rn = 0.;
+            if (whichSet < 1)
+                rn = Math.random() * 50 + 51;
+            else if (whichSet < 2)
+                rn = Math.random() * 50 + 201;
+            else
+                rn = Math.random() * 50 + 351;
+            rn = rn * 5;
+            Double[] args = {Math.random()};
+            led.addEnergyData(args, Math.round(rn));
+        }
+        // check by eyes if it is well spaced... (TODO) find better
+        // assertion
+        System.out.println(Arrays.toString(led.getAvgCosts().stream().map(e->e.second).sorted().toArray()));
+        // assert(led.getAvgCosts().size() <= 10);        
+    }
+
 }
