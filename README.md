@@ -43,9 +43,10 @@ fourth one at 80% of its 11s workflow. The forth box execution time is
 ## Energy consumption awareness
 
 Second part of this project is about providing energy consumption
-awareness to services. We monkey-patch a MAPE-K framework [1] in front
-of every endpoint with peer-to-peer capabilities to efficiently
-propagate energy data between related services [4].
+awareness to services. We monkey-patch an HTTP interceptor with
+autonomic capabilities [1] in front of every endpoint with
+peer-to-peer capabilities to efficiently propagate energy data between
+related services [4].
 
 Front-ends propose to users multiple modes of energy consumption to
 users depending on underlying services of the application. Users
@@ -59,10 +60,10 @@ objective.
 
 Internally, each service (i) discovers, updates, or self-tunes
 arguments depending on a counting bloom filter [2]; (ii) monitors and
-keeps only relevant arguments using a gaussian kernel density
-estimator on energy consumption; (iii) fairly splits an incoming
-objective into sub-objectives by solving exactly-once multiple-choice
-knapsack problem [3] using dynamic programming.
+keeps only relevant arguments with configurable accuracy; (iii) fairly
+splits an incoming objective into sub-objectives by solving
+exactly-once multiple-choice knapsack problem [3] using dynamic
+programming.
 
 ## References
 
